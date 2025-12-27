@@ -14,6 +14,8 @@ import utility.geo_nodes
 importlib.reload(utility.geo_nodes)
 import utility.rearrange
 importlib.reload(utility.rearrange)
+import utility.nodes
+importlib.reload(utility.nodes)
 
 # ----------------------------
 # Run the script

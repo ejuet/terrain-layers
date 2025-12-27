@@ -1,14 +1,32 @@
 import bpy
 from utility.geo_nodes import active_mesh_object, remove_node_group, ensure_geo_nodes_modifier
 from utility.rearrange import arrange_nodes
-
+from utility.nodes import gn_value_float, gn_math_multiply, gn_math_subtract, gn_clamp_0_1
 """
 Terrain Layer Mask Utilities (only has to work for Blender 5.0.0+)
 """
 
-# -----------------------------
+def sort_layers_by_priority(layers: list[dict], priority_key="priority") -> list[dict]:
+    """
+    Returns layers sorted by priority DESC (higher priority first).
+    Stable for equal priorities: earlier items in the config win ties.
+    """
+    indexed = list(enumerate(layers))
+
+    def key(item):
+        idx, layer = item
+        prio = int(layer.get(priority_key, 0))
+        # sort by prio DESC, then idx ASC (stable tiebreak)
+        return (-prio, idx)
+
+    indexed.sort(key=key)
+    return [layer for _, layer in indexed]
+
+
+# ============================================================
 # Mask groups
-# -----------------------------
+# ============================================================
+
 def create_height_mask_group(group_name="TerrainHeightMask"):
     remove_node_group(group_name)
     ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
@@ -81,54 +99,61 @@ def add_height_mask_node(nt, mask_def: dict, *, group_name="TerrainHeightMask"):
 
     return node.outputs["Mask"]
 
-# -----------------------------
-# Utility nodes
-# -----------------------------
-def const_float(nt, value: float, label=None):
-    n = nt.nodes.new("ShaderNodeValue")
-    n.outputs[0].default_value = float(value)
-    if label:
-        n.label = label
-    return n.outputs[0]
 
-def clamp_01(nt, value_socket):
-    c = nt.nodes.new("ShaderNodeClamp")
-    c.inputs["Min"].default_value = 0.0
-    c.inputs["Max"].default_value = 1.0
-    nt.links.new(value_socket, c.inputs["Value"])
-    return c.outputs["Result"]
-
-def mul(nt, a, b, label=None):
-    n = nt.nodes.new("ShaderNodeMath")
-    n.operation = "MULTIPLY"
-    if label:
-        n.label = label
-    nt.links.new(a, n.inputs[0])
-    nt.links.new(b, n.inputs[1])
-    return n.outputs["Value"]
-
-def sub(nt, a, b, clamp=False, label=None):
-    n = nt.nodes.new("ShaderNodeMath")
-    n.operation = "SUBTRACT"
-    n.use_clamp = bool(clamp)
-    if label:
-        n.label = label
-    nt.links.new(a, n.inputs[0])
-    nt.links.new(b, n.inputs[1])
-    return n.outputs["Value"]
-
-# -----------------------------
-# No mask fallback
-# -----------------------------
 def no_mask(nt):
-    """
-    Default mask that is active everywhere (outputs 1.0).
-    """
-    return const_float(nt, 1.0, label="No Mask (Full)")
+    """Default raw mask active everywhere."""
+    return gn_value_float(nt, 1.0, label="RawMask:Full")
 
-# -----------------------------
+
+def create_priority_resolve_group(group_name="TerrainPriorityResolve"):
+    """Creates a node group that resolves priority masks."""
+    remove_node_group(group_name)
+    ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
+    for it in list(ng.interface.items_tree):
+        ng.interface.remove(it)
+    ng.nodes.clear()
+
+    ng.interface.new_socket("Raw Mask","INPUT","NodeSocketFloat")
+    ng.interface.new_socket("Strength","INPUT","NodeSocketFloat")
+    ng.interface.new_socket("Remaining","INPUT","NodeSocketFloat")
+    ng.interface.new_socket("Actual Mask","OUTPUT","NodeSocketFloat")
+    ng.interface.new_socket("Remaining Out","OUTPUT","NodeSocketFloat")
+
+    gin, gout = ng.nodes.new("NodeGroupInput"), ng.nodes.new("NodeGroupOutput")
+
+    # weighted = clamp(raw * strength)
+    w = gn_clamp_0_1(ng, gn_math_multiply(ng, gin.outputs["Raw Mask"], gin.outputs["Strength"], label="R*S"))
+    
+    # actual = w * remaining
+    a = gn_math_multiply(ng, w, gin.outputs["Remaining"], label="A=w*R")
+    
+    # remaining_out = clamp(remaining - actual)
+    r = gn_math_subtract(ng, gin.outputs["Remaining"], a, clamp=True, label="R-A")
+
+    ng.links.new(a, gout.inputs["Actual Mask"])
+    ng.links.new(r, gout.inputs["Remaining Out"])
+    return ng
+
+
+
+def add_priority_resolve_node(nt, *, raw_mask, strength_value: float, remaining_socket, group_name="TerrainPriorityResolve"):
+    resolve_group = bpy.data.node_groups.get(group_name) or create_priority_resolve_group(group_name)
+    node = nt.nodes.new("GeometryNodeGroup")
+    node.node_tree = resolve_group
+
+    nt.links.new(raw_mask, node.inputs["Raw Mask"])
+    node.inputs["Strength"].default_value = float(strength_value)
+    nt.links.new(remaining_socket, node.inputs["Remaining"])
+
+    actual = node.outputs["Actual Mask"]
+    remaining_out = node.outputs["Remaining Out"]
+    return actual, remaining_out
+
+
+# ============================================================
 # Main builder
-# -----------------------------
+# ============================================================
+
 def create_terrain_layers(config):
     obj = active_mesh_object()
 
@@ -137,13 +162,7 @@ def create_terrain_layers(config):
     if not layers:
         raise RuntimeError("Config has no layers.")
 
-    # Stable sort by priority desc, preserving original order for ties
-    indexed_layers = list(enumerate(layers))
-    def _prio(item):
-        idx, layer = item
-        return (int(layer.get("priority", 0)), -idx)  # -idx so earlier entries win ties after reverse
-    indexed_layers.sort(key=_prio, reverse=True)
-    layers_sorted = [layer for _, layer in indexed_layers]
+    layers_sorted = sort_layers_by_priority(layers)
 
     group_name = mod_name
     remove_node_group(group_name)
@@ -163,13 +182,13 @@ def create_terrain_layers(config):
 
     prev_geo = gin.outputs["Geometry"]
 
-    # Remaining weight starts at 1.0
-    remaining = const_float(ng, 1.0, label="Remaining (start=1)")
+    # Remaining starts at 1.0
+    remaining = gn_value_float(ng, 1.0, label="Remaining:Start")
 
     for layer in layers_sorted:
         name = layer["name"]
         mask_def = layer.get("mask")
-        strength_val = float(layer.get("strength", 1.0))
+        strength = float(layer.get("strength", 1.0))
 
         # Raw mask
         if isinstance(mask_def, dict) and mask_def.get("type") == "height":
@@ -177,16 +196,13 @@ def create_terrain_layers(config):
         else:
             raw = no_mask(ng)
 
-        # weighted = clamp(raw * strength)
-        strength = const_float(ng, strength_val, label=f"{name} Strength")
-        weighted = mul(ng, raw, strength, label=f"{name} Weighted")
-        weighted = clamp_01(ng, weighted)
-
-        # actual = weighted * remaining
-        actual = mul(ng, weighted, remaining, label=f"{name} Actual")
-
-        # remaining = clamp(remaining - actual)
-        remaining = sub(ng, remaining, actual, clamp=True, label="Remaining")
+        # Resolve priority via node group
+        actual, remaining = add_priority_resolve_node(
+            ng,
+            raw_mask=raw,
+            strength_value=strength,
+            remaining_socket=remaining,
+        )
 
         # Store resulting (priority-resolved) mask
         store = nodes.new("GeometryNodeStoreNamedAttribute")

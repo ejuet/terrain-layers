@@ -1,5 +1,5 @@
 import bpy
-from utility.blender import (
+from shader.helpers import (
     rebuild_group_if_missing_inputs,
 )
 

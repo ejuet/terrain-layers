@@ -92,6 +92,10 @@ importlib.reload(shader.anti_repetition.uv_noise)
 import shader.create_shader
 
 importlib.reload(shader.create_shader)
+
+import shader.helpers
+
+importlib.reload(shader.helpers)
 # --------------------------------------------------------------------
 # Run the script
 # --------------------------------------------------------------------

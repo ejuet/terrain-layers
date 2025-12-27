@@ -43,6 +43,10 @@ import masks.mask_types.__init__
 
 importlib.reload(masks.mask_types.__init__)
 
+import masks.noise
+
+importlib.reload(masks.noise)
+
 import masks.mask_types.type_helpers
 
 importlib.reload(masks.mask_types.type_helpers)

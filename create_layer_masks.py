@@ -19,9 +19,16 @@ from masks.mask_types.type_helpers import MaskSocket, Node
 from masks.mask_types.height import add_height_mask_node, HeightMask
 from masks.mask_types.slope import SlopeMask, add_slope_mask_node
 from masks.mask_types.paint import PaintMask, add_paint_mask_node
+from masks.noise import (
+    DualNoiseConfig,
+    MaskNoiseConfig,
+    _dual_noise_attr_name,
+    add_store_centered_noise_attribute,
+    add_apply_mask_noise_from_attribute,
+)
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Optional
 
 """
 Terrain Layer Mask Utilities (only has to work for Blender 5.0.0+)
@@ -34,6 +41,7 @@ class Layer:
     priority: int = 0
     strength: float = 1.0
     mask: Mask | None = None
+    mask_noise: Optional[MaskNoiseConfig] = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -170,6 +178,33 @@ def create_terrain_layers(config: TerrainConfig):
     # Remaining starts at 1.0
     remaining: MaskSocket = gn_value_float(ng, 1.0, label="Remaining:Start")
 
+    # Gather unique dual configs actually used by layers.
+    duals_in_use: list[DualNoiseConfig] = []
+    for layer in layers_sorted:
+        if layer.mask_noise is None:
+            continue
+        d = layer.mask_noise.dual
+        if d not in duals_in_use:
+            duals_in_use.append(d)
+    # Create a mapping dual->attribute name, and store each once.
+    dual_to_attr: dict[DualNoiseConfig, str] = {}
+    for i, d in enumerate(duals_in_use):
+        attr = _dual_noise_attr_name(d)
+        dual_to_attr[d] = attr
+
+        prev_geo, created = add_store_centered_noise_attribute(
+            ng,
+            input_geo_socket=prev_geo,
+            attr_name=attr,
+            dual=d,
+        )
+
+        # Layout the shared noise blocks vertically
+        base_y = 520 - (i * 220)
+        for n in created:
+            n.location.y = base_y
+        frame_nodes(ng, f"Shared: Centered Noise ({attr})", created)
+
     for layer in layers_sorted:
         layer_nodes = []
 
@@ -183,6 +218,17 @@ def create_terrain_layers(config: TerrainConfig):
         else:
             mask, new_nodes = no_mask(ng)
         layer_nodes.extend(new_nodes)
+
+        # Optional mask noise: pick attribute based on layer.mask_noise.dual
+        if layer.mask_noise is not None:
+            attr = dual_to_attr[layer.mask_noise.dual]
+            mask, noise_nodes = add_apply_mask_noise_from_attribute(
+                ng,
+                base_mask=mask,
+                noise=layer.mask_noise,
+                attr_name=attr,
+            )
+            layer_nodes.extend(noise_nodes)
 
         # Resolve priority via node group
         actual, remaining, node = add_priority_resolve_node(
@@ -219,6 +265,12 @@ def create_terrain_layers(config: TerrainConfig):
 
 
 def run():
+    # Two dual noise configs: default and an alternate for "Rock"
+    dual_default = DualNoiseConfig(
+        scale=6.0, large_scale=1.5, large_mix=0.35, detail=1.0
+    )
+    dual_alt = DualNoiseConfig(scale=10.0, large_scale=2.2, large_mix=0.55, detail=0.8)
+
     config = TerrainConfig(
         geometry_modifier_name="Terrain_Layer_Masks",
         layers=[
@@ -232,6 +284,14 @@ def run():
                     max_height=7.5,
                     ramp_low=0.35,
                     ramp_high=0.55,
+                ),
+                mask_noise=MaskNoiseConfig(
+                    dual=dual_default,
+                    amount=2.0,
+                    sharpness=1.6,
+                    bias=0.0,
+                    zone_width=0.35,
+                    zone_softness=1.0,
                 ),
             ),
             Layer(
@@ -260,6 +320,14 @@ def run():
                     ramp_low=0.45,
                     ramp_high=0.65,
                 ),
+                mask_noise=MaskNoiseConfig(
+                    dual=dual_default,  # reuses the same stored dual noise as Beach
+                    amount=1.8,
+                    sharpness=1.8,
+                    bias=0.0,
+                    zone_width=0.5,
+                    zone_softness=1.0,
+                ),
             ),
             Layer(
                 name="Rock",
@@ -271,6 +339,14 @@ def run():
                     ramp_low=0.4,
                     ramp_high=0.6,
                 ),
+                mask_noise=MaskNoiseConfig(
+                    dual=dual_alt,  # different dual noise => second stored attribute
+                    amount=2.2,
+                    sharpness=2.0,
+                    bias=0.0,
+                    zone_width=0.4,
+                    zone_softness=1.0,
+                ),
             ),
             Layer(
                 name="Snow",
@@ -281,6 +357,14 @@ def run():
                     max_height=15.0,
                     ramp_low=0.45,
                     ramp_high=0.65,
+                ),
+                mask_noise=MaskNoiseConfig(
+                    dual=dual_default,  # reuses default dual noise
+                    amount=1.2,
+                    sharpness=2.2,
+                    bias=0.0,
+                    zone_width=0.3,
+                    zone_softness=1.2,
                 ),
             ),
         ],

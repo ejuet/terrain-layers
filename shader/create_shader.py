@@ -9,7 +9,7 @@ from shader.anti_repetition.uv_warp import ensure_pbr_warped_uv_group
 from shader.anti_repetition.anti_tile import ensure_pbr_antitile_uvb_fac_group
 from masks.mask_types.paint import PaintMask
 from shader.anti_repetition.uv_noise import get_or_create_shared_dual_noise_node
-
+from utility.frame_nodes import frame_nodes
 
 # ---------------------------------------------------------------------------
 # Small utilities (local replacements for the helpers used in your old script)
@@ -57,20 +57,6 @@ def _add_socket(
         except Exception:
             pass
     return sock
-
-
-def _frame_nodes(nt_or_ng: bpy.types.NodeTree, title: str, nodes_list):
-    if not nodes_list:
-        return None
-    frame = nt_or_ng.nodes.new("NodeFrame")
-    frame.label = title
-    # Place frame roughly around nodes; parent them
-    for n in nodes_list:
-        try:
-            n.parent = frame
-        except Exception:
-            pass
-    return frame
 
 
 def _rebuild_group_if_missing_inputs(
@@ -425,8 +411,8 @@ def _make_pbr_layer_group(
 
         # Frames
         for title, ns in frames:
-            _frame_nodes(ng, title, ns)
-        _frame_nodes(ng, "Textures", [n for n in (tex_a, tex_r, tex_n, tex_h) if n])
+            frame_nodes(ng, title, ns)
+        frame_nodes(ng, "Textures", [n for n in (tex_a, tex_r, tex_n, tex_h) if n])
 
         return ng
 
@@ -508,6 +494,9 @@ def create_terrain_shader(config: TerrainConfig):
     layer_frames: list[bpy.types.Node | None] = []
 
     for i, layer in enumerate(config.layers):
+        if layer.ground_material is None:
+            print("Layer ", layer.name, " has no GroundMaterial, skipping.")
+            continue
         g = nodes.new("ShaderNodeGroup")
         g.node_tree = _make_pbr_layer_group(layer.name, layer.ground_material)
         g.label = f"Layer: {layer.name}"
@@ -567,7 +556,7 @@ def create_terrain_shader(config: TerrainConfig):
             g.inputs["AntiTile Offset"].default_value = (0.37, 0.11, 0.0)
 
         layer_nodes.append(g)
-        layer_frames.append(_frame_nodes(nt, f"Layer {layer.name}", [g]))
+        layer_frames.append(frame_nodes(nt, f"Layer {layer.name}", [g]))
 
     # Mix stack (same approach as your old script, but masks come from attributes per layer name)
     ng_mix = _ensure_mix_terrain_layer_group()

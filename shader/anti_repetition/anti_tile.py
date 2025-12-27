@@ -1,5 +1,4 @@
 from utility.blender import (
-    add_socket,
     rebuild_group_if_missing_inputs,
 )
 import bpy
@@ -30,61 +29,66 @@ def _make_pbr_antitile_uvb_fac_group(
     nodes.clear()
 
     gin = nodes.new("NodeGroupInput")
-    gin.location = (-900, 0)
     gout = nodes.new("NodeGroupOutput")
-    gout.location = (520, 0)
 
-    add_socket(
-        ng,
-        in_out="INPUT",
+    s = ng.interface.new_socket(
         name="Warped Vector",
+        in_out="INPUT",
         socket_type="NodeSocketVector",
-        default=(0.0, 0.0, 0.0),
     )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="AntiTile Noise Centered",
-        socket_type="NodeSocketFloat",
-        default=0.0,
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="AntiTile Enable",
-        socket_type="NodeSocketFloat",
-        default=0.0,
-        min_val=0.0,
-        max_val=1.0,
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="AntiTile Blend",
-        socket_type="NodeSocketFloat",
-        default=1.0,
-        min_val=0.0,
-        max_val=1.0,
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="AntiTile Angle",
-        socket_type="NodeSocketFloat",
-        default=math.radians(60.0),
-        min_val=-math.pi,
-        max_val=math.pi,
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="AntiTile Offset",
-        socket_type="NodeSocketVector",
-        default=(0.37, 0.11, 0.0),
-    )
+    s.default_value = (0.0, 0.0, 0.0)
 
-    add_socket(ng, in_out="OUTPUT", name="UV B", socket_type="NodeSocketVector")
-    add_socket(ng, in_out="OUTPUT", name="Fac", socket_type="NodeSocketFloat")
+    s = ng.interface.new_socket(
+        name="AntiTile Noise Centered",
+        in_out="INPUT",
+        socket_type="NodeSocketFloat",
+    )
+    s.default_value = 0.0
+
+    s = ng.interface.new_socket(
+        name="AntiTile Enable",
+        in_out="INPUT",
+        socket_type="NodeSocketFloat",
+    )
+    s.default_value = 0.0
+    s.min_value = 0.0
+    s.max_value = 1.0
+
+    s = ng.interface.new_socket(
+        name="AntiTile Blend",
+        in_out="INPUT",
+        socket_type="NodeSocketFloat",
+    )
+    s.default_value = 1.0
+    s.min_value = 0.0
+    s.max_value = 1.0
+
+    s = ng.interface.new_socket(
+        name="AntiTile Angle",
+        in_out="INPUT",
+        socket_type="NodeSocketFloat",
+    )
+    s.default_value = math.radians(60.0)
+    s.min_value = -math.pi
+    s.max_value = math.pi
+
+    s = ng.interface.new_socket(
+        name="AntiTile Offset",
+        in_out="INPUT",
+        socket_type="NodeSocketVector",
+    )
+    s.default_value = (0.37, 0.11, 0.0)
+
+    ng.interface.new_socket(
+        name="UV B",
+        in_out="OUTPUT",
+        socket_type="NodeSocketVector",
+    )
+    ng.interface.new_socket(
+        name="Fac",
+        in_out="OUTPUT",
+        socket_type="NodeSocketFloat",
+    )
 
     # Fac = clamp( clamp(n + 0.5) * blend * enable )
     addn = nodes.new("ShaderNodeMath")

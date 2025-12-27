@@ -51,6 +51,10 @@ import masks.mask_types.type_helpers
 
 importlib.reload(masks.mask_types.type_helpers)
 
+import masks.priority_resolving
+
+importlib.reload(masks.priority_resolving)
+
 
 # ----------------------------
 # Config

@@ -306,11 +306,21 @@ def create_priority_resolve_group(group_name: str = "TerrainPriorityResolve"):
         ng.interface.remove(it)
     ng.nodes.clear()
 
-    ng.interface.new_socket("Raw Mask", "INPUT", "NodeSocketFloat")
-    ng.interface.new_socket("Strength", "INPUT", "NodeSocketFloat")
-    ng.interface.new_socket("Remaining", "INPUT", "NodeSocketFloat")
-    ng.interface.new_socket("Actual Mask", "OUTPUT", "NodeSocketFloat")
-    ng.interface.new_socket("Remaining Out", "OUTPUT", "NodeSocketFloat")
+    ng.interface.new_socket(
+        name="Raw Mask", in_out="INPUT", socket_type="NodeSocketFloat"
+    )
+    ng.interface.new_socket(
+        name="Strength", in_out="INPUT", socket_type="NodeSocketFloat"
+    )
+    ng.interface.new_socket(
+        name="Remaining", in_out="INPUT", socket_type="NodeSocketFloat"
+    )
+    ng.interface.new_socket(
+        name="Actual Mask", in_out="OUTPUT", socket_type="NodeSocketFloat"
+    )
+    ng.interface.new_socket(
+        name="Remaining Out", in_out="OUTPUT", socket_type="NodeSocketFloat"
+    )
 
     gin, gout = ng.nodes.new("NodeGroupInput"), ng.nodes.new("NodeGroupOutput")
 

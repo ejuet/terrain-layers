@@ -9,6 +9,8 @@ from masks.noise import DualNoiseConfig, MaskNoiseConfig
 
 from masks.create_layer_masks import create_terrain_layers
 
+from shader.create_shader import create_terrain_shader
+
 
 def run():
     # Two dual noise configs: default and an alternate for "Rock"
@@ -117,3 +119,4 @@ def run():
     )
 
     create_terrain_layers(config)
+    create_terrain_shader(config)

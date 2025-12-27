@@ -67,6 +67,16 @@ import config.helpers
 
 importlib.reload(config.helpers)
 
+# ----------------------------
+# Shader
+# ----------------------------
+import shader.material_types
+
+importlib.reload(shader.material_types)
+
+import shader.get_texture_image
+
+importlib.reload(shader.get_texture_image)
 # --------------------------------------------------------------------
 # Run the script
 # --------------------------------------------------------------------

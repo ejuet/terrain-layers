@@ -1,6 +1,5 @@
 import bpy
 from utility.blender import (
-    add_socket,
     rebuild_group_if_missing_inputs,
 )
 
@@ -14,74 +13,96 @@ def _make_dual_noise_group(group_name="NG_DualNoise2D"):
     nodes.clear()
 
     gin = nodes.new("NodeGroupInput")
-    gin.location = (-900, 0)
     gout = nodes.new("NodeGroupOutput")
-    gout.location = (420, 0)
 
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Vector",
-        socket_type="NodeSocketVector",
-        default=(0.0, 0.0, 0.0),
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Scale",
-        socket_type="NodeSocketFloat",
-        default=6.0,
-        min_val=0.0,
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Large Scale",
-        socket_type="NodeSocketFloat",
-        default=1.5,
-        min_val=0.0,
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Large Mix",
-        socket_type="NodeSocketFloat",
-        default=0.35,
-        min_val=0.0,
-        max_val=1.0,
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Detail",
-        socket_type="NodeSocketFloat",
-        default=1.0,
-        min_val=0.0,
-        max_val=2.0,
-    )
+    # --- Inline sockets (no add_socket) ---
+    iface = getattr(ng, "interface", None)
 
-    add_socket(
-        ng, in_out="OUTPUT", name="Noise Centered", socket_type="NodeSocketFloat"
-    )
+    if iface is not None:
+        s = iface.new_socket(
+            name="Vector", in_out="INPUT", socket_type="NodeSocketVector"
+        )
+        if hasattr(s, "default_value"):
+            s.default_value = (0.0, 0.0, 0.0)
+
+        s = iface.new_socket(
+            name="Scale", in_out="INPUT", socket_type="NodeSocketFloat"
+        )
+        if hasattr(s, "default_value"):
+            s.default_value = 6.0
+        if hasattr(s, "min_value"):
+            s.min_value = 0.0
+
+        s = iface.new_socket(
+            name="Large Scale", in_out="INPUT", socket_type="NodeSocketFloat"
+        )
+        if hasattr(s, "default_value"):
+            s.default_value = 1.5
+        if hasattr(s, "min_value"):
+            s.min_value = 0.0
+
+        s = iface.new_socket(
+            name="Large Mix", in_out="INPUT", socket_type="NodeSocketFloat"
+        )
+        if hasattr(s, "default_value"):
+            s.default_value = 0.35
+        if hasattr(s, "min_value"):
+            s.min_value = 0.0
+        if hasattr(s, "max_value"):
+            s.max_value = 1.0
+
+        s = iface.new_socket(
+            name="Detail", in_out="INPUT", socket_type="NodeSocketFloat"
+        )
+        if hasattr(s, "default_value"):
+            s.default_value = 1.0
+        if hasattr(s, "min_value"):
+            s.min_value = 0.0
+        if hasattr(s, "max_value"):
+            s.max_value = 2.0
+
+        iface.new_socket(
+            name="Noise Centered", in_out="OUTPUT", socket_type="NodeSocketFloat"
+        )
+    else:
+        # Fallback for older Blender builds
+        s = ng.inputs.new("NodeSocketVector", "Vector")
+        s.default_value = (0.0, 0.0, 0.0)
+
+        s = ng.inputs.new("NodeSocketFloat", "Scale")
+        s.default_value = 6.0
+        s.min_value = 0.0
+
+        s = ng.inputs.new("NodeSocketFloat", "Large Scale")
+        s.default_value = 1.5
+        s.min_value = 0.0
+
+        s = ng.inputs.new("NodeSocketFloat", "Large Mix")
+        s.default_value = 0.35
+        s.min_value = 0.0
+        s.max_value = 1.0
+
+        s = ng.inputs.new("NodeSocketFloat", "Detail")
+        s.default_value = 1.0
+        s.min_value = 0.0
+        s.max_value = 2.0
+
+        ng.outputs.new("NodeSocketFloat", "Noise Centered")
 
     n_small = nodes.new("ShaderNodeTexNoise")
-    n_small.location = (-640, 140)
     n_small.noise_dimensions = "2D"
     n_small.inputs["Roughness"].default_value = 0.5
     n_small.inputs["Distortion"].default_value = 0.0
 
     n_large = nodes.new("ShaderNodeTexNoise")
-    n_large.location = (-640, -40)
     n_large.noise_dimensions = "2D"
     n_large.inputs["Roughness"].default_value = 0.5
     n_large.inputs["Distortion"].default_value = 0.0
 
     mix_n = nodes.new("ShaderNodeMix")
-    mix_n.location = (-420, 50)
     mix_n.data_type = "FLOAT"
 
     center = nodes.new("ShaderNodeMath")
-    center.location = (-220, 50)
     center.operation = "SUBTRACT"
     center.inputs[1].default_value = 0.5
 
@@ -122,123 +143,152 @@ def _make_apply_mask_noise_group(group_name="NG_ApplyMaskNoiseZoned"):
     nodes.clear()
 
     gin = nodes.new("NodeGroupInput")
-    gin.location = (-900, 0)
     gout = nodes.new("NodeGroupOutput")
-    gout.location = (520, 0)
 
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Mask",
-        socket_type="NodeSocketFloat",
-        default=0.5,
-        min_val=0.0,
-        max_val=1.0,
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Noise Centered",
-        socket_type="NodeSocketFloat",
-        default=0.0,
-    )
+    # --- Inline sockets (no add_socket) ---
+    iface = getattr(ng, "interface", None)
 
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Amount",
-        socket_type="NodeSocketFloat",
-        default=0.75,
-        min_val=0.0,
-        max_val=5.0,
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Sharpness",
-        socket_type="NodeSocketFloat",
-        default=1.8,
-        min_val=0.1,
-        max_val=10.0,
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Bias",
-        socket_type="NodeSocketFloat",
-        default=0.0,
-        min_val=-1.0,
-        max_val=1.0,
-    )
+    if iface is not None:
+        s = iface.new_socket(name="Mask", in_out="INPUT", socket_type="NodeSocketFloat")
+        if hasattr(s, "default_value"):
+            s.default_value = 0.5
+        if hasattr(s, "min_value"):
+            s.min_value = 0.0
+        if hasattr(s, "max_value"):
+            s.max_value = 1.0
 
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Zone Width",
-        socket_type="NodeSocketFloat",
-        default=0.15,
-        min_val=0.0,
-        max_val=0.5,
-    )
-    add_socket(
-        ng,
-        in_out="INPUT",
-        name="Zone Softness",
-        socket_type="NodeSocketFloat",
-        default=2.0,
-        min_val=0.1,
-        max_val=10.0,
-    )
+        s = iface.new_socket(
+            name="Noise Centered", in_out="INPUT", socket_type="NodeSocketFloat"
+        )
+        if hasattr(s, "default_value"):
+            s.default_value = 0.0
 
-    add_socket(ng, in_out="OUTPUT", name="Mask", socket_type="NodeSocketFloat")
+        s = iface.new_socket(
+            name="Amount", in_out="INPUT", socket_type="NodeSocketFloat"
+        )
+        if hasattr(s, "default_value"):
+            s.default_value = 0.75
+        if hasattr(s, "min_value"):
+            s.min_value = 0.0
+        if hasattr(s, "max_value"):
+            s.max_value = 5.0
+
+        s = iface.new_socket(
+            name="Sharpness", in_out="INPUT", socket_type="NodeSocketFloat"
+        )
+        if hasattr(s, "default_value"):
+            s.default_value = 1.8
+        if hasattr(s, "min_value"):
+            s.min_value = 0.1
+        if hasattr(s, "max_value"):
+            s.max_value = 10.0
+
+        s = iface.new_socket(name="Bias", in_out="INPUT", socket_type="NodeSocketFloat")
+        if hasattr(s, "default_value"):
+            s.default_value = 0.0
+        if hasattr(s, "min_value"):
+            s.min_value = -1.0
+        if hasattr(s, "max_value"):
+            s.max_value = 1.0
+
+        s = iface.new_socket(
+            name="Zone Width", in_out="INPUT", socket_type="NodeSocketFloat"
+        )
+        if hasattr(s, "default_value"):
+            s.default_value = 0.15
+        if hasattr(s, "min_value"):
+            s.min_value = 0.0
+        if hasattr(s, "max_value"):
+            s.max_value = 0.5
+
+        s = iface.new_socket(
+            name="Zone Softness", in_out="INPUT", socket_type="NodeSocketFloat"
+        )
+        if hasattr(s, "default_value"):
+            s.default_value = 2.0
+        if hasattr(s, "min_value"):
+            s.min_value = 0.1
+        if hasattr(s, "max_value"):
+            s.max_value = 10.0
+
+        iface.new_socket(name="Mask", in_out="OUTPUT", socket_type="NodeSocketFloat")
+    else:
+        # Fallback for older Blender builds
+        s = ng.inputs.new("NodeSocketFloat", "Mask")
+        s.default_value = 0.5
+        s.min_value = 0.0
+        s.max_value = 1.0
+
+        s = ng.inputs.new("NodeSocketFloat", "Noise Centered")
+        s.default_value = 0.0
+
+        s = ng.inputs.new("NodeSocketFloat", "Amount")
+        s.default_value = 0.75
+        s.min_value = 0.0
+        s.max_value = 5.0
+
+        s = ng.inputs.new("NodeSocketFloat", "Sharpness")
+        s.default_value = 1.8
+        s.min_value = 0.1
+        s.max_value = 10.0
+
+        s = ng.inputs.new("NodeSocketFloat", "Bias")
+        s.default_value = 0.0
+        s.min_value = -1.0
+        s.max_value = 1.0
+
+        s = ng.inputs.new("NodeSocketFloat", "Zone Width")
+        s.default_value = 0.15
+        s.min_value = 0.0
+        s.max_value = 0.5
+
+        s = ng.inputs.new("NodeSocketFloat", "Zone Softness")
+        s.default_value = 2.0
+        s.min_value = 0.1
+        s.max_value = 10.0
+
+        ng.outputs.new("NodeSocketFloat", "Mask")
 
     m_sub = nodes.new("ShaderNodeMath")
-    m_sub.location = (-680, 240)
     m_sub.operation = "SUBTRACT"
     m_sub.inputs[1].default_value = 0.5
+
     m_abs = nodes.new("ShaderNodeMath")
-    m_abs.location = (-520, 240)
     m_abs.operation = "ABSOLUTE"
 
     zone_map = nodes.new("ShaderNodeMapRange")
-    zone_map.location = (-340, 240)
     zone_map.clamp = True
     zone_map.inputs["From Min"].default_value = 0.0
     zone_map.inputs["To Min"].default_value = 1.0
     zone_map.inputs["To Max"].default_value = 0.0
 
     zone_pow = nodes.new("ShaderNodeMath")
-    zone_pow.location = (-160, 240)
     zone_pow.operation = "POWER"
 
     n_amt = nodes.new("ShaderNodeMath")
-    n_amt.location = (-340, 40)
     n_amt.operation = "MULTIPLY"
+
     n_zone = nodes.new("ShaderNodeMath")
-    n_zone.location = (-160, 40)
     n_zone.operation = "MULTIPLY"
 
     m_add = nodes.new("ShaderNodeMath")
-    m_add.location = (40, 60)
     m_add.operation = "ADD"
+
     m_bias = nodes.new("ShaderNodeMath")
-    m_bias.location = (200, 60)
     m_bias.operation = "ADD"
 
     s_sub = nodes.new("ShaderNodeMath")
-    s_sub.location = (40, -100)
     s_sub.operation = "SUBTRACT"
     s_sub.inputs[1].default_value = 0.5
+
     s_mul = nodes.new("ShaderNodeMath")
-    s_mul.location = (200, -100)
     s_mul.operation = "MULTIPLY"
+
     s_add = nodes.new("ShaderNodeMath")
-    s_add.location = (360, -100)
     s_add.operation = "ADD"
     s_add.inputs[1].default_value = 0.5
 
     clamp = nodes.new("ShaderNodeClamp")
-    clamp.location = (460, 20)
 
     links.new(gin.outputs["Mask"], m_sub.inputs[0])
     links.new(m_sub.outputs["Value"], m_abs.inputs[0])
@@ -326,9 +376,6 @@ def get_or_create_shared_dual_noise_node(
     g.label = "Shared Dual Noise (Cached)"
     g.name = f"__SharedDualNoise_{abs(hash(key)) % 10_000_000}"
 
-    # tuck it near mapping, but out of the main flow
-    g.location = (mapping_node.location.x + 260, mapping_node.location.y - 320)
-
     links.new(mapping_node.outputs["Vector"], g.inputs["Vector"])
     g.inputs["Scale"].default_value = float(scale)
     g.inputs["Large Scale"].default_value = float(large_scale)
@@ -340,7 +387,6 @@ def get_or_create_shared_dual_noise_node(
 
 
 def create_mask_noise(nt, *, base_mask, mapping_node, noise_def):
-
     nodes, links = nt.nodes, nt.links
     created_nodes = []
 
@@ -362,7 +408,6 @@ def create_mask_noise(nt, *, base_mask, mapping_node, noise_def):
     g_apply = nodes.new("ShaderNodeGroup")
     g_apply.node_tree = ng_apply
     g_apply.label = "Mask Noise (Zoned, Cheap)"
-    g_apply.location = (-720, 260)
     created_nodes.append(g_apply)
 
     links.new(base_mask, g_apply.inputs["Mask"])

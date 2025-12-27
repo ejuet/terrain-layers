@@ -375,6 +375,7 @@ def create_dual_noise_cache(
         if d not in duals_in_use:
             duals_in_use.append(d)
     dual_to_attr: dict[DualNoiseConfig, str] = {}
+    all_created_frames = []
     for i, d in enumerate(duals_in_use):
         attr = _dual_noise_attr_name(d)
         dual_to_attr[d] = attr
@@ -386,5 +387,7 @@ def create_dual_noise_cache(
             dual=d,
         )
 
-        frame_nodes(ng, f"Shared: Centered Noise ({attr})", created)
+        frame = frame_nodes(ng, f"Noise ({attr})", created)
+        all_created_frames.append(frame)
+    frame_nodes(ng, "Shared Centered Noises", all_created_frames)
     return dual_to_attr, prev_geo

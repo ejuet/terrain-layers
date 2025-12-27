@@ -187,6 +187,7 @@ def create_terrain_layers(config: TerrainConfig):
         ng,
     )
 
+    frames = []
     for layer in layers_sorted:
         layer_nodes = []
 
@@ -234,7 +235,10 @@ def create_terrain_layers(config: TerrainConfig):
         prev_geo = store.outputs["Geometry"]
 
         # Frame the layer nodes
-        frame_nodes(ng, f"Layer: {layer.name}", layer_nodes)
+        frame = frame_nodes(ng, f"Layer: {layer.name}", layer_nodes)
+        frames.append(frame)
+
+    frame_nodes(ng, "Terrain Layers", frames)
 
     links.new(prev_geo, gout.inputs["Geometry"])
 

@@ -99,4 +99,4 @@ import pipeline
 
 importlib.reload(pipeline)
 
-shader.create_shader.run()
+pipeline.run()

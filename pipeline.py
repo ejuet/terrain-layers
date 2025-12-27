@@ -10,6 +10,11 @@ from masks.noise import DualNoiseConfig, MaskNoiseConfig
 from masks.create_layer_masks import create_terrain_layers
 
 from shader.create_shader import create_terrain_shader
+from shader.material_types import (
+    GroundMaterial,
+    UVWarpConfig,
+    UVAntiTilingConfig,
+)
 
 
 def run():
@@ -22,14 +27,24 @@ def run():
     config = TerrainConfig(
         geometry_modifier_name="Terrain_Layer_Masks",
         layers=[
-            Layer(name="Underwater", priority=0, strength=1.0),
+            Layer(
+                name="Underwater",
+                priority=0,
+                strength=1.0,
+                ground_material=GroundMaterial(
+                    "Muddy ground with underwater moss",
+                    uv_scale=2.0,
+                    uv_warp=UVWarpConfig(),
+                    uv_anti_tiling=UVAntiTilingConfig(),
+                ),
+            ),
             Layer(
                 name="Beach",
                 priority=10,
                 strength=1.0,
                 mask=HeightMask(
-                    min_height=1.5,
-                    max_height=7.5,
+                    min_height=1.0,
+                    max_height=6.5,
                     ramp_low=0.35,
                     ramp_high=0.55,
                 ),
@@ -41,22 +56,7 @@ def run():
                     zone_width=0.35,
                     zone_softness=1.0,
                 ),
-            ),
-            Layer(
-                name="Sand Painted",
-                priority=20,
-                strength=1.0,
-                mask=PaintMask(
-                    image_name="IMG_Terrain_SandPaint",
-                    uv_map_name="UV_TerrainPaint",
-                    width=2048,
-                    height=2048,
-                    alpha=True,
-                    ramp_low=0.0,
-                    ramp_high=1.0,
-                    interpolation="Linear",
-                    extension="CLIP",
-                ),
+                ground_material=GroundMaterial("Sand"),
             ),
             Layer(
                 name="Grass",
@@ -76,6 +76,7 @@ def run():
                     zone_width=0.5,
                     zone_softness=1.0,
                 ),
+                ground_material=GroundMaterial("Grass"),
             ),
             Layer(
                 name="Rock",
@@ -95,13 +96,23 @@ def run():
                     zone_width=0.4,
                     zone_softness=1.0,
                 ),
+                ground_material=GroundMaterial("Rock"),
+            ),
+            Layer(
+                name="Volcanos",
+                priority=27,
+                strength=1.0,
+                mask=PaintMask(
+                    image_name="IMG_Terrain_VolcanosMask",
+                ),
+                ground_material=GroundMaterial("04 Vulcanic Rock Surface D"),
             ),
             Layer(
                 name="Snow",
                 priority=30,
                 strength=1.0,
                 mask=HeightMask(
-                    min_height=9.0,
+                    min_height=11.0,
                     max_height=15.0,
                     ramp_low=0.45,
                     ramp_high=0.65,
@@ -114,6 +125,7 @@ def run():
                     zone_width=0.3,
                     zone_softness=1.2,
                 ),
+                ground_material=GroundMaterial("Snow"),
             ),
         ],
     )

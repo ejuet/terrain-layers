@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import bpy
 from utility.geo_nodes import (
     active_mesh_object,
@@ -12,23 +14,64 @@ from utility.nodes import (
     gn_clamp_0_1,
 )
 
+
+from dataclasses import dataclass, field
+from typing import Literal, TypeAlias, Union
+
 """
 Terrain Layer Mask Utilities (only has to work for Blender 5.0.0+)
 """
 
+# Semantic alias for “this socket is a 0..1 mask”
+MaskSocket: TypeAlias = bpy.types.NodeSocket
 
-def sort_layers_by_priority(layers: list[dict], priority_key="priority") -> list[dict]:
+
+@dataclass(frozen=True, slots=True)
+class HeightMask:
+    type: Literal["height"] = "height"
+    min_height: float = 0.0
+    max_height: float = 10.0
+    ramp_low: float = 0.4
+    ramp_high: float = 0.6
+
+
+@dataclass(frozen=True, slots=True)
+class SlopeMask:
+    type: Literal["slope"] = "slope"
+    min_angle: float = 25.0
+    max_angle: float = 60.0
+    ramp_low: float = 0.4
+    ramp_high: float = 0.6
+
+
+Mask = Union[HeightMask, SlopeMask]
+
+
+@dataclass(frozen=True, slots=True)
+class Layer:
+    name: str
+    priority: int = 0
+    strength: float = 1.0
+    mask: Mask | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TerrainConfig:
+    geometry_modifier_name: str = "Terrain_Layer_Masks"
+    layers: list[Layer] = field(default_factory=list)
+
+
+def sort_layers_by_priority(layers: list[Layer]) -> list[Layer]:
     """
     Returns layers sorted by priority DESC (higher priority first).
     Stable for equal priorities: earlier items in the config win ties.
     """
     indexed = list(enumerate(layers))
 
-    def key(item):
+    def key(item: tuple[int, Layer]) -> tuple[int, int]:
         idx, layer = item
-        prio = int(layer.get(priority_key, 0))
         # sort by prio DESC, then idx ASC (stable tiebreak)
-        return (-prio, idx)
+        return (-int(layer.priority), idx)
 
     indexed.sort(key=key)
     return [layer for _, layer in indexed]
@@ -39,7 +82,7 @@ def sort_layers_by_priority(layers: list[dict], priority_key="priority") -> list
 # ============================================================
 
 
-def create_height_mask_group(group_name="TerrainHeightMask"):
+def create_height_mask_group(group_name: str = "TerrainHeightMask"):
     remove_node_group(group_name)
     ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
 
@@ -106,7 +149,9 @@ def create_height_mask_group(group_name="TerrainHeightMask"):
     return ng
 
 
-def add_height_mask_node(nt, mask_def: dict, *, group_name="TerrainHeightMask"):
+def add_height_mask_node(
+    nt, mask_def: HeightMask, *, group_name: str = "TerrainHeightMask"
+) -> MaskSocket:
     mask_group = bpy.data.node_groups.get(group_name) or create_height_mask_group(
         group_name
     )
@@ -116,15 +161,15 @@ def add_height_mask_node(nt, mask_def: dict, *, group_name="TerrainHeightMask"):
     pos_node = nt.nodes.new("GeometryNodeInputPosition")
     nt.links.new(pos_node.outputs["Position"], node.inputs["Position"])
 
-    node.inputs["Min Height"].default_value = float(mask_def.get("min_height", 0.0))
-    node.inputs["Max Height"].default_value = float(mask_def.get("max_height", 10.0))
-    node.inputs["Ramp Low"].default_value = float(mask_def.get("ramp_low", 0.4))
-    node.inputs["Ramp High"].default_value = float(mask_def.get("ramp_high", 0.6))
+    node.inputs["Min Height"].default_value = float(mask_def.min_height)
+    node.inputs["Max Height"].default_value = float(mask_def.max_height)
+    node.inputs["Ramp Low"].default_value = float(mask_def.ramp_low)
+    node.inputs["Ramp High"].default_value = float(mask_def.ramp_high)
 
     return node.outputs["Mask"]
 
 
-def create_slope_mask_group(group_name="TerrainSlopeMask"):
+def create_slope_mask_group(group_name: str = "TerrainSlopeMask"):
     """
     Produces a mask based on slope angle (degrees) from the geometry normal:
       0° = perfectly flat (facing +Z), 90° = vertical.
@@ -228,7 +273,9 @@ def create_slope_mask_group(group_name="TerrainSlopeMask"):
     return ng
 
 
-def add_slope_mask_node(nt, mask_def: dict, *, group_name="TerrainSlopeMask"):
+def add_slope_mask_node(
+    nt, mask_def: SlopeMask, *, group_name: str = "TerrainSlopeMask"
+) -> MaskSocket:
     mask_group = bpy.data.node_groups.get(group_name) or create_slope_mask_group(
         group_name
     )
@@ -238,20 +285,20 @@ def add_slope_mask_node(nt, mask_def: dict, *, group_name="TerrainSlopeMask"):
     nrm_node = nt.nodes.new("GeometryNodeInputNormal")
     nt.links.new(nrm_node.outputs["Normal"], node.inputs["Normal"])
 
-    node.inputs["Min Angle"].default_value = float(mask_def.get("min_angle", 25.0))
-    node.inputs["Max Angle"].default_value = float(mask_def.get("max_angle", 60.0))
-    node.inputs["Ramp Low"].default_value = float(mask_def.get("ramp_low", 0.4))
-    node.inputs["Ramp High"].default_value = float(mask_def.get("ramp_high", 0.6))
+    node.inputs["Min Angle"].default_value = float(mask_def.min_angle)
+    node.inputs["Max Angle"].default_value = float(mask_def.max_angle)
+    node.inputs["Ramp Low"].default_value = float(mask_def.ramp_low)
+    node.inputs["Ramp High"].default_value = float(mask_def.ramp_high)
 
     return node.outputs["Mask"]
 
 
-def no_mask(nt):
+def no_mask(nt) -> MaskSocket:
     """Default raw mask active everywhere."""
     return gn_value_float(nt, 1.0, label="RawMask:Full")
 
 
-def create_priority_resolve_group(group_name="TerrainPriorityResolve"):
+def create_priority_resolve_group(group_name: str = "TerrainPriorityResolve"):
     """Creates a node group that resolves priority masks."""
     remove_node_group(group_name)
     ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
@@ -289,11 +336,11 @@ def create_priority_resolve_group(group_name="TerrainPriorityResolve"):
 def add_priority_resolve_node(
     nt,
     *,
-    raw_mask,
+    raw_mask: MaskSocket,
     strength_value: float,
-    remaining_socket,
-    group_name="TerrainPriorityResolve"
-):
+    remaining_socket: MaskSocket,
+    group_name: str = "TerrainPriorityResolve",
+) -> tuple[MaskSocket, MaskSocket]:
     resolve_group = bpy.data.node_groups.get(
         group_name
     ) or create_priority_resolve_group(group_name)
@@ -304,9 +351,7 @@ def add_priority_resolve_node(
     node.inputs["Strength"].default_value = float(strength_value)
     nt.links.new(remaining_socket, node.inputs["Remaining"])
 
-    actual = node.outputs["Actual Mask"]
-    remaining_out = node.outputs["Remaining Out"]
-    return actual, remaining_out
+    return node.outputs["Actual Mask"], node.outputs["Remaining Out"]
 
 
 # ============================================================
@@ -314,15 +359,14 @@ def add_priority_resolve_node(
 # ============================================================
 
 
-def create_terrain_layers(config):
+def create_terrain_layers(config: TerrainConfig):
     obj = active_mesh_object()
 
-    mod_name = config.get("geometry_modifier_name", "Terrain_Layer_Masks")
-    layers = config.get("layers", [])
-    if not layers:
+    if not config.layers:
         raise RuntimeError("Config has no layers.")
 
-    layers_sorted = sort_layers_by_priority(layers)
+    mod_name = config.geometry_modifier_name
+    layers_sorted = sort_layers_by_priority(config.layers)
 
     group_name = mod_name
     remove_node_group(group_name)
@@ -347,18 +391,14 @@ def create_terrain_layers(config):
     prev_geo = gin.outputs["Geometry"]
 
     # Remaining starts at 1.0
-    remaining = gn_value_float(ng, 1.0, label="Remaining:Start")
+    remaining: MaskSocket = gn_value_float(ng, 1.0, label="Remaining:Start")
 
     for layer in layers_sorted:
-        name = layer["name"]
-        mask_def = layer.get("mask")
-        strength = float(layer.get("strength", 1.0))
-
         # Raw mask
-        if isinstance(mask_def, dict) and mask_def.get("type") == "height":
-            raw = add_height_mask_node(ng, mask_def)
-        elif isinstance(mask_def, dict) and mask_def.get("type") == "slope":
-            raw = add_slope_mask_node(ng, mask_def)
+        if isinstance(layer.mask, HeightMask):
+            raw = add_height_mask_node(ng, layer.mask)
+        elif isinstance(layer.mask, SlopeMask):
+            raw = add_slope_mask_node(ng, layer.mask)
         else:
             raw = no_mask(ng)
 
@@ -366,7 +406,7 @@ def create_terrain_layers(config):
         actual, remaining = add_priority_resolve_node(
             ng,
             raw_mask=raw,
-            strength_value=strength,
+            strength_value=layer.strength,
             remaining_socket=remaining,
         )
 
@@ -374,7 +414,7 @@ def create_terrain_layers(config):
         store = nodes.new("GeometryNodeStoreNamedAttribute")
         store.domain = "POINT"
         store.data_type = "FLOAT"
-        store.inputs["Name"].default_value = name
+        store.inputs["Name"].default_value = layer.name
 
         links.new(prev_geo, store.inputs["Geometry"])
         links.new(actual, store.inputs["Value"])
@@ -392,59 +432,55 @@ def create_terrain_layers(config):
 
 
 def run():
-    config = {
-        "geometry_modifier_name": "Terrain_Layer_Masks",
-        "layers": [
-            {"name": "Underwater", "priority": 0, "strength": 1.0},
-            {
-                "name": "Beach",
-                "priority": 10,
-                "strength": 1.0,
-                "mask": {
-                    "type": "height",
-                    "min_height": 1.5,
-                    "max_height": 7.5,
-                    "ramp_low": 0.35,
-                    "ramp_high": 0.55,
-                },
-            },
-            {
-                "name": "Grass",
-                "priority": 20,
-                "strength": 1.0,
-                "mask": {
-                    "type": "height",
-                    "min_height": 3.5,
-                    "max_height": 8.0,
-                    "ramp_low": 0.45,
-                    "ramp_high": 0.65,
-                },
-            },
-            {
-                "name": "Rock",
-                "priority": 25,
-                "strength": 1.0,
-                "mask": {
-                    "type": "slope",
-                    "min_angle": 25.0,
-                    "max_angle": 60.0,
-                    "ramp_low": 0.4,
-                    "ramp_high": 0.6,
-                },
-            },
-            {
-                "name": "Snow",
-                "priority": 30,
-                "strength": 1.0,
-                "mask": {
-                    "type": "height",
-                    "min_height": 9.0,
-                    "max_height": 15.0,
-                    "ramp_low": 0.45,
-                    "ramp_high": 0.65,
-                },
-            },
+    config = TerrainConfig(
+        geometry_modifier_name="Terrain_Layer_Masks",
+        layers=[
+            Layer(name="Underwater", priority=0, strength=1.0),
+            Layer(
+                name="Beach",
+                priority=10,
+                strength=1.0,
+                mask=HeightMask(
+                    min_height=1.5,
+                    max_height=7.5,
+                    ramp_low=0.35,
+                    ramp_high=0.55,
+                ),
+            ),
+            Layer(
+                name="Grass",
+                priority=20,
+                strength=1.0,
+                mask=HeightMask(
+                    min_height=3.5,
+                    max_height=8.0,
+                    ramp_low=0.45,
+                    ramp_high=0.65,
+                ),
+            ),
+            Layer(
+                name="Rock",
+                priority=25,
+                strength=1.0,
+                mask=SlopeMask(
+                    min_angle=25.0,
+                    max_angle=60.0,
+                    ramp_low=0.4,
+                    ramp_high=0.6,
+                ),
+            ),
+            Layer(
+                name="Snow",
+                priority=30,
+                strength=1.0,
+                mask=HeightMask(
+                    min_height=9.0,
+                    max_height=15.0,
+                    ramp_low=0.45,
+                    ramp_high=0.65,
+                ),
+            ),
         ],
-    }
+    )
 
     create_terrain_layers(config)

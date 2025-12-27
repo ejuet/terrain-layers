@@ -99,17 +99,8 @@ def run():
                 ground_material=GroundMaterial("Snow"),
             ),
             Layer(
-                name="Volcanos",
-                priority=27,
-                strength=1.0,
-                mask=PaintMask(
-                    image_name="IMG_Terrain_VolcanosMask",
-                ),
-                ground_material=GroundMaterial("04 Vulcanic Rock Surface D"),
-            ),
-            Layer(
                 name="Rock",
-                priority=30,
+                priority=27,
                 strength=1.0,
                 mask=SlopeMask(
                     min_angle=25.0,
@@ -126,6 +117,15 @@ def run():
                     zone_softness=1.0,
                 ),
                 ground_material=GroundMaterial("Rock"),
+            ),
+            Layer(
+                name="Volcanos",
+                priority=30,
+                strength=1.0,
+                mask=PaintMask(
+                    image_name="IMG_Terrain_VolcanosMask",
+                ),
+                ground_material=GroundMaterial("04 Vulcanic Rock Surface D"),
             ),
         ],
     )

@@ -55,11 +55,6 @@ def sort_layers_by_priority(layers: list[Layer]) -> list[Layer]:
     return [layer for _, layer in indexed]
 
 
-# ============================================================
-# Mask groups
-# ============================================================
-
-
 def no_mask(nt) -> MaskSocket:
     """Default raw mask active everywhere."""
     return gn_value_float(nt, 1.0, label="RawMask:Full")

@@ -13,12 +13,14 @@ from utility.nodes import (
     gn_math_subtract,
     gn_clamp_0_1,
 )
+from utility.frame_nodes import frame_nodes
 from masks.mask_types import Mask
-from masks.mask_types.type_helpers import MaskSocket
+from masks.mask_types.type_helpers import MaskSocket, Node
 from masks.mask_types.height import add_height_mask_node, HeightMask
 from masks.mask_types.slope import SlopeMask, add_slope_mask_node
 
 from dataclasses import dataclass, field
+from typing import Any
 
 """
 Terrain Layer Mask Utilities (only has to work for Blender 5.0.0+)
@@ -55,9 +57,11 @@ def sort_layers_by_priority(layers: list[Layer]) -> list[Layer]:
     return [layer for _, layer in indexed]
 
 
-def no_mask(nt) -> MaskSocket:
+def no_mask(nt) -> tuple[MaskSocket, Node]:
     """Default raw mask active everywhere."""
-    return gn_value_float(nt, 1.0, label="RawMask:Full")
+    outp = gn_value_float(nt, 1.0, label="RawMask:Full")
+    node_of_outp = outp.node
+    return outp, node_of_outp
 
 
 def create_priority_resolve_group(group_name: str = "TerrainPriorityResolve"):
@@ -112,7 +116,7 @@ def add_priority_resolve_node(
     strength_value: float,
     remaining_socket: MaskSocket,
     group_name: str = "TerrainPriorityResolve",
-) -> tuple[MaskSocket, MaskSocket]:
+) -> tuple[MaskSocket, MaskSocket, Node]:
     resolve_group = bpy.data.node_groups.get(
         group_name
     ) or create_priority_resolve_group(group_name)
@@ -123,7 +127,7 @@ def add_priority_resolve_node(
     node.inputs["Strength"].default_value = float(strength_value)
     nt.links.new(remaining_socket, node.inputs["Remaining"])
 
-    return node.outputs["Actual Mask"], node.outputs["Remaining Out"]
+    return node.outputs["Actual Mask"], node.outputs["Remaining Out"], node
 
 
 # ============================================================
@@ -166,24 +170,29 @@ def create_terrain_layers(config: TerrainConfig):
     remaining: MaskSocket = gn_value_float(ng, 1.0, label="Remaining:Start")
 
     for layer in layers_sorted:
+        layer_nodes = []
+
         # Raw mask
         if isinstance(layer.mask, HeightMask):
-            raw = add_height_mask_node(ng, layer.mask)
+            mask, node = add_height_mask_node(ng, layer.mask)
         elif isinstance(layer.mask, SlopeMask):
-            raw = add_slope_mask_node(ng, layer.mask)
+            mask, node = add_slope_mask_node(ng, layer.mask)
         else:
-            raw = no_mask(ng)
+            mask, node = no_mask(ng)
+        layer_nodes.append(node)
 
         # Resolve priority via node group
-        actual, remaining = add_priority_resolve_node(
+        actual, remaining, node = add_priority_resolve_node(
             ng,
-            raw_mask=raw,
+            raw_mask=mask,
             strength_value=layer.strength,
             remaining_socket=remaining,
         )
+        layer_nodes.append(node)
 
         # Store resulting (priority-resolved) mask
         store = nodes.new("GeometryNodeStoreNamedAttribute")
+        layer_nodes.append(store)
         store.domain = "POINT"
         store.data_type = "FLOAT"
         store.inputs["Name"].default_value = layer.name
@@ -192,6 +201,9 @@ def create_terrain_layers(config: TerrainConfig):
         links.new(actual, store.inputs["Value"])
 
         prev_geo = store.outputs["Geometry"]
+
+        # Frame the layer nodes
+        frame_nodes(ng, f"Layer: {layer.name}", layer_nodes)
 
     links.new(prev_geo, gout.inputs["Geometry"])
 

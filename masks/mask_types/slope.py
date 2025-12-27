@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Literal
 from utility.geo_nodes import remove_node_group
 import bpy
-from masks.mask_types.type_helpers import MaskSocket
+from masks.mask_types.type_helpers import MaskSocket, Node
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,7 +120,7 @@ def create_slope_mask_group(group_name: str = "TerrainSlopeMask"):
 
 def add_slope_mask_node(
     nt, mask_def: SlopeMask, *, group_name: str = "TerrainSlopeMask"
-) -> MaskSocket:
+) -> tuple[MaskSocket, Node]:
     mask_group = bpy.data.node_groups.get(group_name) or create_slope_mask_group(
         group_name
     )
@@ -135,4 +135,4 @@ def add_slope_mask_node(
     node.inputs["Ramp Low"].default_value = float(mask_def.ramp_low)
     node.inputs["Ramp High"].default_value = float(mask_def.ramp_high)
 
-    return node.outputs["Mask"]
+    return node.outputs["Mask"], node

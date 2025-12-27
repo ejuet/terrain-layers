@@ -1,6 +1,6 @@
 import sys
 import importlib
-sys.path.append("/home/lisa/Repositories/Private/terrain-shader")
+sys.path.append("/home/lisa/Repositories/Private/terrain-layers")
 
 """
 Reload all modules to reflect recent changes without restarting Blender.

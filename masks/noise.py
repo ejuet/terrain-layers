@@ -53,8 +53,11 @@ def _clear_group_interface(ng: bpy.types.NodeTree) -> None:
 
 def create_dual_noise_centered_group(group_name: str = "GN_DualNoise2D_Centered"):
     """
-    Outputs centered dual noise (shader logic mirrored, kept simple):
-      small_noise, large_noise -> mix -> subtract 0.5
+    Outputs centered dual noise (all float math, Geometry Nodes-safe):
+
+      small_fac and large_fac are floats.
+      mix = small_fac * (1 - LargeMix) + large_fac * LargeMix
+      centered = mix - 0.5
 
     Inputs:
       Vector, Scale, Large Scale, Large Mix, Detail
@@ -82,6 +85,7 @@ def create_dual_noise_centered_group(group_name: str = "GN_DualNoise2D_Centered"
     gin = nodes.new("NodeGroupInput")
     gout = nodes.new("NodeGroupOutput")
 
+    # Noise textures (shader nodes are allowed in GN trees; the issue was SeparateColor)
     n_small = nodes.new("ShaderNodeTexNoise")
     n_small.noise_dimensions = "2D"
     n_small.inputs["Roughness"].default_value = 0.5
@@ -92,17 +96,25 @@ def create_dual_noise_centered_group(group_name: str = "GN_DualNoise2D_Centered"
     n_large.inputs["Roughness"].default_value = 0.5
     n_large.inputs["Distortion"].default_value = 0.0
 
-    # Simple mix (MixRGB), treat Fac as grayscale
-    mix = nodes.new("ShaderNodeMixRGB")
-    mix.blend_type = "MIX"
+    # mix floats: small*(1-f) + large*f
+    inv = nodes.new("ShaderNodeMath")
+    inv.operation = "SUBTRACT"
+    inv.inputs[0].default_value = 1.0  # 1 - f
 
-    sep = nodes.new("ShaderNodeSeparateColor")
-    sep.mode = "RGB"
+    mul_small = nodes.new("ShaderNodeMath")
+    mul_small.operation = "MULTIPLY"
+
+    mul_large = nodes.new("ShaderNodeMath")
+    mul_large.operation = "MULTIPLY"
+
+    add_mix = nodes.new("ShaderNodeMath")
+    add_mix.operation = "ADD"
 
     center = nodes.new("ShaderNodeMath")
     center.operation = "SUBTRACT"
     center.inputs[1].default_value = 0.5
 
+    # Inputs -> noise
     links.new(gin.outputs["Vector"], n_small.inputs["Vector"])
     links.new(gin.outputs["Scale"], n_small.inputs["Scale"])
     links.new(gin.outputs["Detail"], n_small.inputs["Detail"])
@@ -111,22 +123,31 @@ def create_dual_noise_centered_group(group_name: str = "GN_DualNoise2D_Centered"
     links.new(gin.outputs["Large Scale"], n_large.inputs["Scale"])
     links.new(gin.outputs["Detail"], n_large.inputs["Detail"])
 
-    links.new(gin.outputs["Large Mix"], mix.inputs["Fac"])
-    links.new(n_small.outputs["Fac"], mix.inputs["Color1"])
-    links.new(n_large.outputs["Fac"], mix.inputs["Color2"])
+    # fac wiring
+    links.new(gin.outputs["Large Mix"], inv.inputs[1])  # inv = 1 - f
+    links.new(gin.outputs["Large Mix"], mul_large.inputs[1])  # large * f
+    links.new(inv.outputs["Value"], mul_small.inputs[1])  # small * (1-f)
 
-    links.new(mix.outputs["Color"], sep.inputs["Color"])
-    links.new(sep.outputs["Red"], center.inputs[0])
+    # noise wiring
+    links.new(n_small.outputs["Fac"], mul_small.inputs[0])
+    links.new(n_large.outputs["Fac"], mul_large.inputs[0])
 
+    # sum + center
+    links.new(mul_small.outputs["Value"], add_mix.inputs[0])
+    links.new(mul_large.outputs["Value"], add_mix.inputs[1])
+    links.new(add_mix.outputs["Value"], center.inputs[0])
     links.new(center.outputs["Value"], gout.inputs["Noise Centered"])
 
+    # Layout
     gin.location = (-900, 0)
     n_small.location = (-640, 140)
     n_large.location = (-640, -40)
-    mix.location = (-420, 50)
-    sep.location = (-240, 50)
-    center.location = (-80, 50)
-    gout.location = (140, 0)
+    inv.location = (-420, 120)
+    mul_small.location = (-240, 140)
+    mul_large.location = (-240, -20)
+    add_mix.location = (-60, 60)
+    center.location = (120, 60)
+    gout.location = (320, 0)
 
     return ng
 

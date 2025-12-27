@@ -77,6 +77,21 @@ importlib.reload(shader.material_types)
 import shader.get_texture_image
 
 importlib.reload(shader.get_texture_image)
+
+import shader.anti_repetition.uv_warp
+
+importlib.reload(shader.anti_repetition.uv_warp)
+import shader.anti_repetition.anti_tile
+
+importlib.reload(shader.anti_repetition.anti_tile)
+
+import shader.anti_repetition.uv_noise
+
+importlib.reload(shader.anti_repetition.uv_noise)
+
+import shader.create_shader
+
+importlib.reload(shader.create_shader)
 # --------------------------------------------------------------------
 # Run the script
 # --------------------------------------------------------------------
@@ -84,4 +99,4 @@ import pipeline
 
 importlib.reload(pipeline)
 
-pipeline.run()
+shader.create_shader.run()

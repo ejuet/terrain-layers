@@ -1,6 +1,7 @@
 import bpy
 from utility.geo_nodes import active_mesh_object, remove_node_group, ensure_geo_nodes_modifier
 from utility.rearrange import arrange_nodes
+
 """
 Terrain Layer Mask Utilities (only has to work for Blender 5.0.0+)
 """
@@ -64,6 +65,7 @@ def create_height_mask_group(group_name="TerrainHeightMask"):
 
     return ng
 
+
 def add_height_mask_node(nt, mask_def: dict, *, group_name="TerrainHeightMask"):
     mask_group = bpy.data.node_groups.get(group_name) or create_height_mask_group(group_name)
     node = nt.nodes.new("GeometryNodeGroup")
@@ -80,18 +82,49 @@ def add_height_mask_node(nt, mask_def: dict, *, group_name="TerrainHeightMask"):
     return node.outputs["Mask"]
 
 # -----------------------------
+# Utility nodes
+# -----------------------------
+def const_float(nt, value: float, label=None):
+    n = nt.nodes.new("ShaderNodeValue")
+    n.outputs[0].default_value = float(value)
+    if label:
+        n.label = label
+    return n.outputs[0]
+
+def clamp_01(nt, value_socket):
+    c = nt.nodes.new("ShaderNodeClamp")
+    c.inputs["Min"].default_value = 0.0
+    c.inputs["Max"].default_value = 1.0
+    nt.links.new(value_socket, c.inputs["Value"])
+    return c.outputs["Result"]
+
+def mul(nt, a, b, label=None):
+    n = nt.nodes.new("ShaderNodeMath")
+    n.operation = "MULTIPLY"
+    if label:
+        n.label = label
+    nt.links.new(a, n.inputs[0])
+    nt.links.new(b, n.inputs[1])
+    return n.outputs["Value"]
+
+def sub(nt, a, b, clamp=False, label=None):
+    n = nt.nodes.new("ShaderNodeMath")
+    n.operation = "SUBTRACT"
+    n.use_clamp = bool(clamp)
+    if label:
+        n.label = label
+    nt.links.new(a, n.inputs[0])
+    nt.links.new(b, n.inputs[1])
+    return n.outputs["Value"]
+
+# -----------------------------
 # No mask fallback
 # -----------------------------
 def no_mask(nt):
     """
     Default mask that is active everywhere (outputs 1.0).
     """
-    node = nt.nodes.new("ShaderNodeMath")
-    node.operation = "ADD"
-    node.inputs[0].default_value = 0.0
-    node.inputs[1].default_value = 1.0
-    node.label = "No Mask (Full)"
-    return node.outputs["Value"]
+    return const_float(nt, 1.0, label="No Mask (Full)")
 
 # -----------------------------
 # Main builder
@@ -103,6 +136,14 @@ def create_terrain_layers(config):
     layers = config.get("layers", [])
     if not layers:
         raise RuntimeError("Config has no layers.")
+
+    # Stable sort by priority desc, preserving original order for ties
+    indexed_layers = list(enumerate(layers))
+    def _prio(item):
+        idx, layer = item
+        return (int(layer.get("priority", 0)), -idx)  # -idx so earlier entries win ties after reverse
+    indexed_layers.sort(key=_prio, reverse=True)
+    layers_sorted = [layer for _, layer in indexed_layers]
 
     group_name = mod_name
     remove_node_group(group_name)
@@ -122,22 +163,39 @@ def create_terrain_layers(config):
 
     prev_geo = gin.outputs["Geometry"]
 
-    for i, layer in enumerate(layers):
+    # Remaining weight starts at 1.0
+    remaining = const_float(ng, 1.0, label="Remaining (start=1)")
+
+    for layer in layers_sorted:
         name = layer["name"]
         mask_def = layer.get("mask")
+        strength_val = float(layer.get("strength", 1.0))
 
+        # Raw mask
         if isinstance(mask_def, dict) and mask_def.get("type") == "height":
-            mask = add_height_mask_node(ng, mask_def)
+            raw = add_height_mask_node(ng, mask_def)
         else:
-            mask = no_mask(ng)
+            raw = no_mask(ng)
 
+        # weighted = clamp(raw * strength)
+        strength = const_float(ng, strength_val, label=f"{name} Strength")
+        weighted = mul(ng, raw, strength, label=f"{name} Weighted")
+        weighted = clamp_01(ng, weighted)
+
+        # actual = weighted * remaining
+        actual = mul(ng, weighted, remaining, label=f"{name} Actual")
+
+        # remaining = clamp(remaining - actual)
+        remaining = sub(ng, remaining, actual, clamp=True, label="Remaining")
+
+        # Store resulting (priority-resolved) mask
         store = nodes.new("GeometryNodeStoreNamedAttribute")
         store.domain = "POINT"
         store.data_type = "FLOAT"
         store.inputs["Name"].default_value = name
 
         links.new(prev_geo, store.inputs["Geometry"])
-        links.new(mask, store.inputs["Value"])
+        links.new(actual, store.inputs["Value"])
 
         prev_geo = store.outputs["Geometry"]
 
@@ -146,26 +204,31 @@ def create_terrain_layers(config):
     mod = ensure_geo_nodes_modifier(obj, mod_name)
     mod.node_group = ng
     mod.name = mod_name
-    
-    arrange_nodes(ng)
 
+    arrange_nodes(ng)
     return ng
 
 def run():
     config = {
         "geometry_modifier_name": "Terrain_Layer_Masks",
         "layers": [
-            {"name": "Underwater"},
+            {"name": "Underwater", "priority": 0, "strength": 1.0},
             {
                 "name": "Beach",
+                "priority": 10,
+                "strength": 1.0,
                 "mask": {"type": "height", "min_height": 1.5, "max_height": 7.5, "ramp_low": 0.35, "ramp_high": 0.55},
             },
             {
                 "name": "Grass",
+                "priority": 20,
+                "strength": 1.0,
                 "mask": {"type": "height", "min_height": 3.5, "max_height": 8.0, "ramp_low": 0.45, "ramp_high": 0.65},
             },
             {
                 "name": "Snow",
+                "priority": 30,
+                "strength": 1.0,
                 "mask": {"type": "height", "min_height": 9.0, "max_height": 15.0, "ramp_low": 0.45, "ramp_high": 0.65},
             },
         ],

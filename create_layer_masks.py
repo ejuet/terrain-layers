@@ -1,33 +1,9 @@
 import bpy
+from utility.geo_nodes import active_mesh_object, remove_node_group, ensure_geo_nodes_modifier
 
 """
-Terrain Layer Mask Utilities (Blender 5.0.0)
-
-Pure geometry node + attribute mask creation. No preview or layout logic.
-Helper functions are flat (no underscores) so they can be moved into a utility file later.
+Terrain Layer Mask Utilities (only has to work for Blender 5.0.0+)
 """
-
-# -----------------------------
-# Basic helpers
-# -----------------------------
-def active_mesh_object():
-    obj = bpy.context.object
-    if obj is None:
-        raise RuntimeError("No active object. Select a mesh first.")
-    if obj.type != "MESH":
-        raise RuntimeError(f"Active object must be MESH, got: {obj.type}")
-    return obj
-
-def remove_node_group(name: str):
-    ng = bpy.data.node_groups.get(name)
-    if ng:
-        bpy.data.node_groups.remove(ng)
-
-def ensure_geo_nodes_modifier(obj, name: str):
-    mod = obj.modifiers.get(name)
-    if mod is None or mod.type != "NODES":
-        mod = obj.modifiers.new(name, "NODES")
-    return mod
 
 # -----------------------------
 # Mask groups
@@ -108,14 +84,13 @@ def add_height_mask_node(nt, mask_def: dict, *, group_name="TerrainHeightMask"):
 # -----------------------------
 def no_mask(nt):
     """
-    Creates a default "no mask" field that always outputs 0.0
-    (equivalent to having no terrain layer mask assigned)
+    Default mask that is active everywhere (outputs 1.0).
     """
     node = nt.nodes.new("ShaderNodeMath")
     node.operation = "ADD"
     node.inputs[0].default_value = 0.0
-    node.inputs[1].default_value = 0.0
-    node.label = "No Mask"
+    node.inputs[1].default_value = 1.0
+    node.label = "No Mask (Full)"
     return node.outputs["Value"]
 
 # -----------------------------

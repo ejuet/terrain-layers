@@ -9,6 +9,9 @@ Reload all modules to reflect recent changes without restarting Blender.
 import create_layer_masks
 importlib.reload(create_layer_masks)
 
+# utility
+import utility.geo_nodes
+importlib.reload(utility.geo_nodes)
 
 # ----------------------------
 # Run the script

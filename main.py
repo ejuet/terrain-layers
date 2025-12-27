@@ -51,6 +51,17 @@ import masks.mask_types.type_helpers
 
 importlib.reload(masks.mask_types.type_helpers)
 
+
+# ----------------------------
+# Config
+# ----------------------------
+import config.config_types
+
+importlib.reload(config.config_types)
+import config.helpers
+
+importlib.reload(config.helpers)
+
 # --------------------------------------------------------------------
 # Run the script
 # --------------------------------------------------------------------

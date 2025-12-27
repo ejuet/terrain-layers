@@ -26,43 +26,12 @@ from masks.noise import (
     add_apply_mask_noise_from_attribute,
 )
 
-from dataclasses import dataclass, field
-from typing import Optional
+from config.config_types import Layer, TerrainConfig
+from config.helpers import sort_layers_by_priority
 
 """
 Terrain Layer Mask Utilities (only has to work for Blender 5.0.0+)
 """
-
-
-@dataclass(frozen=True, slots=True)
-class Layer:
-    name: str
-    priority: int = 0
-    strength: float = 1.0
-    mask: Mask | None = None
-    mask_noise: Optional[MaskNoiseConfig] = None
-
-
-@dataclass(frozen=True, slots=True)
-class TerrainConfig:
-    geometry_modifier_name: str = "Terrain_Layer_Masks"
-    layers: list[Layer] = field(default_factory=list)
-
-
-def sort_layers_by_priority(layers: list[Layer]) -> list[Layer]:
-    """
-    Returns layers sorted by priority DESC (higher priority first).
-    Stable for equal priorities: earlier items in the config win ties.
-    """
-    indexed = list(enumerate(layers))
-
-    def key(item: tuple[int, Layer]) -> tuple[int, int]:
-        idx, layer = item
-        # sort by prio DESC, then idx ASC (stable tiebreak)
-        return (-int(layer.priority), idx)
-
-    indexed.sort(key=key)
-    return [layer for _, layer in indexed]
 
 
 def no_mask(nt) -> tuple[MaskSocket, list[Node]]:

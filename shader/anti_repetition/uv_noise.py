@@ -1,9 +1,7 @@
 import bpy
 from utility.blender import (
     add_socket,
-    get_or_create_group,
     rebuild_group_if_missing_inputs,
-    frame_nodes,
 )
 
 
@@ -106,9 +104,13 @@ def _make_dual_noise_group(group_name="NG_DualNoise2D"):
 
 
 def _ensure_dual_noise_group():
-    return get_or_create_group(
-        "NG_DualNoise2D", lambda: _make_dual_noise_group("NG_DualNoise2D")
+    required = {"Vector", "Scale", "Large Scale", "Large Mix", "Detail"}
+    ng = rebuild_group_if_missing_inputs(
+        "NG_DualNoise2D",
+        required,
+        lambda: _make_dual_noise_group("NG_DualNoise2D"),
     )
+    return ng
 
 
 # ---------------------------------------------------------

@@ -1,0 +1,11 @@
+{
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportAttributeAccessIssue": "none",
+        "reportUnknownMemberType": "none",
+        "reportUnknownVariableType": "none",
+        "reportUnknownArgumentType": "none",
+        "reportUnknownParameterType": "none",
+        "reportUnknownLambdaType": "none",
+        "reportOptionalMemberAccess": "none"
+    }
+}

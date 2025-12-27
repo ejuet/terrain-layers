@@ -108,7 +108,6 @@ def create_paint_mask_group(group_name: str = "TerrainPaintMask"):
     # can't be sampled in GN without custom nodes.
     tex = nodes.new("GeometryNodeImageTexture")
     tex.label = "Paint: Image Sample"
-    tex.location = (-700, 0)
 
     if "Vector" in tex.inputs:
         links.new(gin.outputs["UV"], tex.inputs["Vector"])
@@ -123,32 +122,26 @@ def create_paint_mask_group(group_name: str = "TerrainPaintMask"):
     # Separate RGB (this node is allowed in GN in your setup)
     sep = nodes.new("ShaderNodeSeparateXYZ")
     sep.label = "Separate RGB"
-    sep.location = (-450, 0)
     links.new(color, sep.inputs["Vector"])
 
     # Luminance = R*0.2126 + G*0.7152 + B*0.0722
     mr = _math(ng, "MULTIPLY", "R*0.2126")
-    mr.location = (-250, 120)
     links.new(sep.outputs["X"], mr.inputs[0])
     mr.inputs[1].default_value = 0.2126
 
     mg = _math(ng, "MULTIPLY", "G*0.7152")
-    mg.location = (-250, 0)
     links.new(sep.outputs["Y"], mg.inputs[0])
     mg.inputs[1].default_value = 0.7152
 
     mb = _math(ng, "MULTIPLY", "B*0.0722")
-    mb.location = (-250, -120)
     links.new(sep.outputs["Z"], mb.inputs[0])
     mb.inputs[1].default_value = 0.0722
 
     add_rg = _math(ng, "ADD", "R+G")
-    add_rg.location = (-60, 60)
     links.new(mr.outputs[0], add_rg.inputs[0])
     links.new(mg.outputs[0], add_rg.inputs[1])
 
     lum = _math(ng, "ADD", "(R+G)+B")
-    lum.location = (120, 0)
     links.new(add_rg.outputs[0], lum.inputs[0])
     links.new(mb.outputs[0], lum.inputs[1])
 
@@ -156,32 +149,26 @@ def create_paint_mask_group(group_name: str = "TerrainPaintMask"):
     # t = (lum - low) / max(high-low, eps)
     # t = clamp(t, 0, 1) using MAXIMUM + MINIMUM (no CLAMP op needed)
     num = _math(ng, "SUBTRACT", "lum-low")
-    num.location = (320, 60)
     links.new(lum.outputs[0], num.inputs[0])
     links.new(gin.outputs["Ramp Low"], num.inputs[1])
 
     denom = _math(ng, "SUBTRACT", "high-low")
-    denom.location = (320, -80)
     links.new(gin.outputs["Ramp High"], denom.inputs[0])
     links.new(gin.outputs["Ramp Low"], denom.inputs[1])
 
     denom_safe = _math(ng, "MAXIMUM", "max(denom, eps)")
-    denom_safe.location = (520, -80)
     links.new(denom.outputs[0], denom_safe.inputs[0])
     denom_safe.inputs[1].default_value = 1e-6
 
     div = _math(ng, "DIVIDE", "t")
-    div.location = (520, 60)
     links.new(num.outputs[0], div.inputs[0])
     links.new(denom_safe.outputs[0], div.inputs[1])
 
     max0 = _math(ng, "MAXIMUM", "max(t,0)")
-    max0.location = (720, 60)
     links.new(div.outputs[0], max0.inputs[0])
     max0.inputs[1].default_value = 0.0
 
     min1 = _math(ng, "MINIMUM", "min(t,1)")
-    min1.location = (920, 60)
     links.new(max0.outputs[0], min1.inputs[0])
     min1.inputs[1].default_value = 1.0
 

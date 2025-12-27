@@ -5,27 +5,6 @@ import bpy
 # -----------------------------
 
 
-# todo only used in anti_repetition, remove this
-def add_socket(
-    ng,
-    *,
-    in_out: str,
-    name: str,
-    socket_type: str,
-    default=None,
-    min_val=None,
-    max_val=None
-):
-    s = ng.interface.new_socket(name=name, in_out=in_out, socket_type=socket_type)
-    if default is not None and hasattr(s, "default_value"):
-        s.default_value = default
-    if min_val is not None and hasattr(s, "min_value"):
-        s.min_value = min_val
-    if max_val is not None and hasattr(s, "max_value"):
-        s.max_value = max_val
-    return s
-
-
 def rebuild_group_if_missing_inputs(
     group_name: str, required_inputs: set[str], build_fn
 ):

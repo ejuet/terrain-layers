@@ -57,11 +57,11 @@ def sort_layers_by_priority(layers: list[Layer]) -> list[Layer]:
     return [layer for _, layer in indexed]
 
 
-def no_mask(nt) -> tuple[MaskSocket, Node]:
+def no_mask(nt) -> tuple[MaskSocket, list[Node]]:
     """Default raw mask active everywhere."""
     outp = gn_value_float(nt, 1.0, label="RawMask:Full")
     node_of_outp = outp.node
-    return outp, node_of_outp
+    return outp, [node_of_outp]
 
 
 def create_priority_resolve_group(group_name: str = "TerrainPriorityResolve"):
@@ -174,12 +174,12 @@ def create_terrain_layers(config: TerrainConfig):
 
         # Raw mask
         if isinstance(layer.mask, HeightMask):
-            mask, node = add_height_mask_node(ng, layer.mask)
+            mask, new_nodes = add_height_mask_node(ng, layer.mask)
         elif isinstance(layer.mask, SlopeMask):
-            mask, node = add_slope_mask_node(ng, layer.mask)
+            mask, new_nodes = add_slope_mask_node(ng, layer.mask)
         else:
-            mask, node = no_mask(ng)
-        layer_nodes.append(node)
+            mask, new_nodes = no_mask(ng)
+        layer_nodes.extend(new_nodes)
 
         # Resolve priority via node group
         actual, remaining, node = add_priority_resolve_node(

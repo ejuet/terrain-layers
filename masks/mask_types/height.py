@@ -83,7 +83,7 @@ def create_height_mask_group(group_name: str = "TerrainHeightMask"):
 
 def add_height_mask_node(
     nt, mask_def: HeightMask, *, group_name: str = "TerrainHeightMask"
-) -> tuple[MaskSocket, Node]:
+) -> tuple[MaskSocket, list[Node]]:
     mask_group = bpy.data.node_groups.get(group_name) or create_height_mask_group(
         group_name
     )
@@ -98,4 +98,4 @@ def add_height_mask_node(
     node.inputs["Ramp Low"].default_value = float(mask_def.ramp_low)
     node.inputs["Ramp High"].default_value = float(mask_def.ramp_high)
 
-    return node.outputs["Mask"], node
+    return node.outputs["Mask"], [pos_node, node]

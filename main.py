@@ -34,9 +34,9 @@ importlib.reload(masks.mask_types.height)
 import masks.mask_types.slope
 
 importlib.reload(masks.mask_types.slope)
-import masks.mask_types
+import masks.mask_types.__init__
 
-importlib.reload(masks.mask_types)
+importlib.reload(masks.mask_types.__init__)
 
 import masks.mask_types.type_helpers
 

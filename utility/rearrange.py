@@ -180,6 +180,17 @@ def _try_call_op(op_callable):
 
 
 def arrange_nodes(node_tree: bpy.types.NodeTree, *, do_redraw: bool = True):
+    """
+    Arrange nodes in the given node_tree using available Node Arrange operators.
+    Prints a warning if no operator could be found.
+    """
+    try:
+        _arrange_nodes(node_tree, do_redraw=do_redraw)
+    except Exception as e:
+        print(f"arrange_nodes_in_shader_editor: Warning: Could not arrange nodes: {e}")
+
+
+def _arrange_nodes(node_tree: bpy.types.NodeTree, *, do_redraw: bool = True):
     if node_tree is None:
         raise ValueError("arrange_nodes_in_shader_editor: node_tree is None")
 

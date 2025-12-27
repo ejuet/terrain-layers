@@ -18,6 +18,7 @@ from masks.mask_types import Mask
 from masks.mask_types.type_helpers import MaskSocket, Node
 from masks.mask_types.height import add_height_mask_node, HeightMask
 from masks.mask_types.slope import SlopeMask, add_slope_mask_node
+from masks.mask_types.paint import PaintMask, add_paint_mask_node
 
 from dataclasses import dataclass, field
 from typing import Any
@@ -177,6 +178,8 @@ def create_terrain_layers(config: TerrainConfig):
             mask, new_nodes = add_height_mask_node(ng, layer.mask)
         elif isinstance(layer.mask, SlopeMask):
             mask, new_nodes = add_slope_mask_node(ng, layer.mask)
+        elif isinstance(layer.mask, PaintMask):
+            mask, new_nodes = add_paint_mask_node(ng, layer.mask, obj=obj)
         else:
             mask, new_nodes = no_mask(ng)
         layer_nodes.extend(new_nodes)
@@ -229,6 +232,22 @@ def run():
                     max_height=7.5,
                     ramp_low=0.35,
                     ramp_high=0.55,
+                ),
+            ),
+            Layer(
+                name="Sand Painted",
+                priority=20,
+                strength=1.0,
+                mask=PaintMask(
+                    image_name="IMG_Terrain_SandPaint",
+                    uv_map_name="UV_TerrainPaint",
+                    width=2048,
+                    height=2048,
+                    alpha=True,
+                    ramp_low=0.0,
+                    ramp_high=1.0,
+                    interpolation="Linear",
+                    extension="CLIP",
                 ),
             ),
             Layer(

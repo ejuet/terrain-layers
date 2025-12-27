@@ -26,13 +26,6 @@ def add_socket(
     return s
 
 
-def get_or_create_group(group_name: str, build_fn):
-    ng = bpy.data.node_groups.get(group_name)
-    if ng and ng.bl_idname == "ShaderNodeTree":
-        return ng
-    return build_fn()
-
-
 def rebuild_group_if_missing_inputs(
     group_name: str, required_inputs: set[str], build_fn
 ):

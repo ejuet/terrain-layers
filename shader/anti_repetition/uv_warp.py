@@ -1,6 +1,5 @@
 from utility.blender import (
     add_socket,
-    get_or_create_group,
     rebuild_group_if_missing_inputs,
 )
 import bpy
@@ -125,7 +124,6 @@ def ensure_pbr_warped_uv_group():
     def _build():
         return _make_pbr_warped_uv_group("NG_PBR_WarpedUV_FromDualNoise")
 
-    ng = get_or_create_group("NG_PBR_WarpedUV_FromDualNoise", _build)
     # Ensure inputs exist (handles older versions)
     return rebuild_group_if_missing_inputs(
         "NG_PBR_WarpedUV_FromDualNoise", required, _build

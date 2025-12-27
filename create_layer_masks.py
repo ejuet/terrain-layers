@@ -1,10 +1,21 @@
 import bpy
-from utility.geo_nodes import active_mesh_object, remove_node_group, ensure_geo_nodes_modifier
+from utility.geo_nodes import (
+    active_mesh_object,
+    remove_node_group,
+    ensure_geo_nodes_modifier,
+)
 from utility.rearrange import arrange_nodes
-from utility.nodes import gn_value_float, gn_math_multiply, gn_math_subtract, gn_clamp_0_1
+from utility.nodes import (
+    gn_value_float,
+    gn_math_multiply,
+    gn_math_subtract,
+    gn_clamp_0_1,
+)
+
 """
 Terrain Layer Mask Utilities (only has to work for Blender 5.0.0+)
 """
+
 
 def sort_layers_by_priority(layers: list[dict], priority_key="priority") -> list[dict]:
     """
@@ -27,6 +38,7 @@ def sort_layers_by_priority(layers: list[dict], priority_key="priority") -> list
 # Mask groups
 # ============================================================
 
+
 def create_height_mask_group(group_name="TerrainHeightMask"):
     remove_node_group(group_name)
     ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
@@ -35,11 +47,21 @@ def create_height_mask_group(group_name="TerrainHeightMask"):
         ng.interface.remove(it)
     ng.nodes.clear()
 
-    ng.interface.new_socket(name="Position", in_out="INPUT", socket_type="NodeSocketVector")
-    ng.interface.new_socket(name="Min Height", in_out="INPUT", socket_type="NodeSocketFloat")
-    ng.interface.new_socket(name="Max Height", in_out="INPUT", socket_type="NodeSocketFloat")
-    ng.interface.new_socket(name="Ramp Low", in_out="INPUT", socket_type="NodeSocketFloat")
-    ng.interface.new_socket(name="Ramp High", in_out="INPUT", socket_type="NodeSocketFloat")
+    ng.interface.new_socket(
+        name="Position", in_out="INPUT", socket_type="NodeSocketVector"
+    )
+    ng.interface.new_socket(
+        name="Min Height", in_out="INPUT", socket_type="NodeSocketFloat"
+    )
+    ng.interface.new_socket(
+        name="Max Height", in_out="INPUT", socket_type="NodeSocketFloat"
+    )
+    ng.interface.new_socket(
+        name="Ramp Low", in_out="INPUT", socket_type="NodeSocketFloat"
+    )
+    ng.interface.new_socket(
+        name="Ramp High", in_out="INPUT", socket_type="NodeSocketFloat"
+    )
     ng.interface.new_socket(name="Mask", in_out="OUTPUT", socket_type="NodeSocketFloat")
 
     nodes, links = ng.nodes, ng.links
@@ -85,7 +107,9 @@ def create_height_mask_group(group_name="TerrainHeightMask"):
 
 
 def add_height_mask_node(nt, mask_def: dict, *, group_name="TerrainHeightMask"):
-    mask_group = bpy.data.node_groups.get(group_name) or create_height_mask_group(group_name)
+    mask_group = bpy.data.node_groups.get(group_name) or create_height_mask_group(
+        group_name
+    )
     node = nt.nodes.new("GeometryNodeGroup")
     node.node_tree = mask_group
 
@@ -114,11 +138,21 @@ def create_slope_mask_group(group_name="TerrainSlopeMask"):
         ng.interface.remove(it)
     ng.nodes.clear()
 
-    ng.interface.new_socket(name="Normal", in_out="INPUT", socket_type="NodeSocketVector")
-    ng.interface.new_socket(name="Min Angle", in_out="INPUT", socket_type="NodeSocketFloat")
-    ng.interface.new_socket(name="Max Angle", in_out="INPUT", socket_type="NodeSocketFloat")
-    ng.interface.new_socket(name="Ramp Low", in_out="INPUT", socket_type="NodeSocketFloat")
-    ng.interface.new_socket(name="Ramp High", in_out="INPUT", socket_type="NodeSocketFloat")
+    ng.interface.new_socket(
+        name="Normal", in_out="INPUT", socket_type="NodeSocketVector"
+    )
+    ng.interface.new_socket(
+        name="Min Angle", in_out="INPUT", socket_type="NodeSocketFloat"
+    )
+    ng.interface.new_socket(
+        name="Max Angle", in_out="INPUT", socket_type="NodeSocketFloat"
+    )
+    ng.interface.new_socket(
+        name="Ramp Low", in_out="INPUT", socket_type="NodeSocketFloat"
+    )
+    ng.interface.new_socket(
+        name="Ramp High", in_out="INPUT", socket_type="NodeSocketFloat"
+    )
     ng.interface.new_socket(name="Mask", in_out="OUTPUT", socket_type="NodeSocketFloat")
 
     nodes, links = ng.nodes, ng.links
@@ -195,7 +229,9 @@ def create_slope_mask_group(group_name="TerrainSlopeMask"):
 
 
 def add_slope_mask_node(nt, mask_def: dict, *, group_name="TerrainSlopeMask"):
-    mask_group = bpy.data.node_groups.get(group_name) or create_slope_mask_group(group_name)
+    mask_group = bpy.data.node_groups.get(group_name) or create_slope_mask_group(
+        group_name
+    )
     node = nt.nodes.new("GeometryNodeGroup")
     node.node_tree = mask_group
 
@@ -232,11 +268,16 @@ def create_priority_resolve_group(group_name="TerrainPriorityResolve"):
     gin, gout = ng.nodes.new("NodeGroupInput"), ng.nodes.new("NodeGroupOutput")
 
     # weighted = clamp(raw * strength)
-    w = gn_clamp_0_1(ng, gn_math_multiply(ng, gin.outputs["Raw Mask"], gin.outputs["Strength"], label="R*S"))
-    
+    w = gn_clamp_0_1(
+        ng,
+        gn_math_multiply(
+            ng, gin.outputs["Raw Mask"], gin.outputs["Strength"], label="R*S"
+        ),
+    )
+
     # actual = w * remaining
     a = gn_math_multiply(ng, w, gin.outputs["Remaining"], label="A=w*R")
-    
+
     # remaining_out = clamp(remaining - actual)
     r = gn_math_subtract(ng, gin.outputs["Remaining"], a, clamp=True, label="R-A")
 
@@ -245,8 +286,17 @@ def create_priority_resolve_group(group_name="TerrainPriorityResolve"):
     return ng
 
 
-def add_priority_resolve_node(nt, *, raw_mask, strength_value: float, remaining_socket, group_name="TerrainPriorityResolve"):
-    resolve_group = bpy.data.node_groups.get(group_name) or create_priority_resolve_group(group_name)
+def add_priority_resolve_node(
+    nt,
+    *,
+    raw_mask,
+    strength_value: float,
+    remaining_socket,
+    group_name="TerrainPriorityResolve"
+):
+    resolve_group = bpy.data.node_groups.get(
+        group_name
+    ) or create_priority_resolve_group(group_name)
     node = nt.nodes.new("GeometryNodeGroup")
     node.node_tree = resolve_group
 
@@ -262,6 +312,7 @@ def add_priority_resolve_node(nt, *, raw_mask, strength_value: float, remaining_
 # ============================================================
 # Main builder
 # ============================================================
+
 
 def create_terrain_layers(config):
     obj = active_mesh_object()
@@ -280,8 +331,12 @@ def create_terrain_layers(config):
     for it in list(ng.interface.items_tree):
         ng.interface.items_tree.remove(it)
 
-    ng.interface.new_socket(name="Geometry", in_out="INPUT", socket_type="NodeSocketGeometry")
-    ng.interface.new_socket(name="Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry")
+    ng.interface.new_socket(
+        name="Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
+    )
+    ng.interface.new_socket(
+        name="Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry"
+    )
 
     nodes, links = ng.nodes, ng.links
     nodes.clear()
@@ -345,25 +400,49 @@ def run():
                 "name": "Beach",
                 "priority": 10,
                 "strength": 1.0,
-                "mask": {"type": "height", "min_height": 1.5, "max_height": 7.5, "ramp_low": 0.35, "ramp_high": 0.55},
+                "mask": {
+                    "type": "height",
+                    "min_height": 1.5,
+                    "max_height": 7.5,
+                    "ramp_low": 0.35,
+                    "ramp_high": 0.55,
+                },
             },
             {
                 "name": "Grass",
                 "priority": 20,
                 "strength": 1.0,
-                "mask": {"type": "height", "min_height": 3.5, "max_height": 8.0, "ramp_low": 0.45, "ramp_high": 0.65},
+                "mask": {
+                    "type": "height",
+                    "min_height": 3.5,
+                    "max_height": 8.0,
+                    "ramp_low": 0.45,
+                    "ramp_high": 0.65,
+                },
             },
             {
                 "name": "Rock",
                 "priority": 25,
                 "strength": 1.0,
-                "mask": {"type": "slope", "min_angle": 25.0, "max_angle": 60.0, "ramp_low": 0.4, "ramp_high": 0.6},
+                "mask": {
+                    "type": "slope",
+                    "min_angle": 25.0,
+                    "max_angle": 60.0,
+                    "ramp_low": 0.4,
+                    "ramp_high": 0.6,
+                },
             },
             {
                 "name": "Snow",
                 "priority": 30,
                 "strength": 1.0,
-                "mask": {"type": "height", "min_height": 9.0, "max_height": 15.0, "ramp_low": 0.45, "ramp_high": 0.65},
+                "mask": {
+                    "type": "height",
+                    "min_height": 9.0,
+                    "max_height": 15.0,
+                    "ramp_low": 0.45,
+                    "ramp_high": 0.65,
+                },
             },
         ],
     }

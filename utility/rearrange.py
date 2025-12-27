@@ -20,7 +20,14 @@ def _find_node_editor_context():
 
 
 def _pick_area_to_temporarily_convert(screen):
-    preferred = {"VIEW_3D", "OUTLINER", "PROPERTIES", "IMAGE_EDITOR", "TEXT_EDITOR", "DOPESHEET_EDITOR"}
+    preferred = {
+        "VIEW_3D",
+        "OUTLINER",
+        "PROPERTIES",
+        "IMAGE_EDITOR",
+        "TEXT_EDITOR",
+        "DOPESHEET_EDITOR",
+    }
     avoid = {"TOPBAR", "STATUSBAR"}
     candidates = [a for a in screen.areas if a.type not in avoid]
     if not candidates:
@@ -62,7 +69,9 @@ def _get_or_make_node_editor_context():
 
         return (window, screen, area, region, space), restore
 
-    raise RuntimeError("arrange_nodes_in_shader_editor: Could not find or create a NODE_EDITOR area in any window.")
+    raise RuntimeError(
+        "arrange_nodes_in_shader_editor: Could not find or create a NODE_EDITOR area in any window."
+    )
 
 
 def _set_space_to_tree(space, node_tree):
@@ -70,7 +79,9 @@ def _set_space_to_tree(space, node_tree):
         space.node_tree = node_tree
 
     if hasattr(space, "tree_type"):
-        tree_type = getattr(node_tree, "bl_idname", None) or getattr(space, "tree_type", None)
+        tree_type = getattr(node_tree, "bl_idname", None) or getattr(
+            space, "tree_type", None
+        )
         if tree_type:
             try:
                 space.tree_type = tree_type
@@ -172,7 +183,9 @@ def arrange_nodes(node_tree: bpy.types.NodeTree, *, do_redraw: bool = True):
     if node_tree is None:
         raise ValueError("arrange_nodes_in_shader_editor: node_tree is None")
 
-    (window, screen, area, region, space), restore_ui = _get_or_make_node_editor_context()
+    (window, screen, area, region, space), restore_ui = (
+        _get_or_make_node_editor_context()
+    )
 
     nodes = node_tree.nodes
     prev_selected = {n: bool(n.select) for n in nodes}
@@ -183,7 +196,12 @@ def arrange_nodes(node_tree: bpy.types.NodeTree, *, do_redraw: bool = True):
             n.select = True
 
         out = next(
-            (n for n in nodes if n.bl_idname in {"ShaderNodeOutputMaterial", "CompositorNodeComposite"}),
+            (
+                n
+                for n in nodes
+                if n.bl_idname
+                in {"ShaderNodeOutputMaterial", "CompositorNodeComposite"}
+            ),
             None,
         )
         nodes.active = out or (nodes[0] if nodes else None)

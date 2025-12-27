@@ -1,5 +1,6 @@
 import bpy
 
+
 # -----------------------------
 # Basic helpers
 # -----------------------------
@@ -15,6 +16,7 @@ def active_mesh_object():
         raise RuntimeError(f"Active object must be MESH, got: {obj.type}")
     return obj
 
+
 def remove_node_group(name: str):
     """
     Removes a node group by name if it exists.
@@ -22,6 +24,7 @@ def remove_node_group(name: str):
     ng = bpy.data.node_groups.get(name)
     if ng:
         bpy.data.node_groups.remove(ng)
+
 
 def ensure_geo_nodes_modifier(obj, name: str):
     """

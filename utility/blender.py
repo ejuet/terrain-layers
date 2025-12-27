@@ -1,11 +1,11 @@
 import bpy
 
-# todo only used in anti_repetition, remove this
 # -----------------------------
 # Small utilities (Blender 5.0)
 # -----------------------------
 
 
+# todo only used in anti_repetition, remove this
 def add_socket(
     ng,
     *,
@@ -41,26 +41,3 @@ def rebuild_group_if_missing_inputs(
             return build_fn()
         return ng
     return build_fn()
-
-
-def frame_nodes(nt, title: str, nodes_to_frame: list):
-    """
-    Put given nodes into a NodeFrame with a label/title.
-    Returns the created frame.
-    """
-    if not nodes_to_frame:
-        return None
-
-    frame = nt.nodes.new("NodeFrame")
-    frame.label = title
-    frame.name = title
-
-    # Place the frame roughly around the first node; Blender will grow/shrink visually.
-    first = nodes_to_frame[0]
-    frame.location = (first.location.x - 120, first.location.y + 120)
-
-    for n in nodes_to_frame:
-        if n:
-            n.parent = frame
-
-    return frame

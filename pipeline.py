@@ -79,37 +79,8 @@ def run():
                 ground_material=GroundMaterial("Grass"),
             ),
             Layer(
-                name="Rock",
-                priority=25,
-                strength=1.0,
-                mask=SlopeMask(
-                    min_angle=25.0,
-                    max_angle=60.0,
-                    ramp_low=0.4,
-                    ramp_high=0.6,
-                ),
-                mask_noise=MaskNoiseConfig(
-                    dual=dual_alt,  # different dual noise => second stored attribute
-                    amount=2.2,
-                    sharpness=2.0,
-                    bias=0.0,
-                    zone_width=0.4,
-                    zone_softness=1.0,
-                ),
-                ground_material=GroundMaterial("Rock"),
-            ),
-            Layer(
-                name="Volcanos",
-                priority=27,
-                strength=1.0,
-                mask=PaintMask(
-                    image_name="IMG_Terrain_VolcanosMask",
-                ),
-                ground_material=GroundMaterial("04 Vulcanic Rock Surface D"),
-            ),
-            Layer(
                 name="Snow",
-                priority=30,
+                priority=25,
                 strength=1.0,
                 mask=HeightMask(
                     min_height=11.0,
@@ -126,6 +97,35 @@ def run():
                     zone_softness=1.2,
                 ),
                 ground_material=GroundMaterial("Snow"),
+            ),
+            Layer(
+                name="Volcanos",
+                priority=27,
+                strength=1.0,
+                mask=PaintMask(
+                    image_name="IMG_Terrain_VolcanosMask",
+                ),
+                ground_material=GroundMaterial("04 Vulcanic Rock Surface D"),
+            ),
+            Layer(
+                name="Rock",
+                priority=30,
+                strength=1.0,
+                mask=SlopeMask(
+                    min_angle=25.0,
+                    max_angle=60.0,
+                    ramp_low=0.4,
+                    ramp_high=0.6,
+                ),
+                mask_noise=MaskNoiseConfig(
+                    dual=dual_alt,  # different dual noise => second stored attribute
+                    amount=2.2,
+                    sharpness=2.0,
+                    bias=0.0,
+                    zone_width=0.4,
+                    zone_softness=1.0,
+                ),
+                ground_material=GroundMaterial("Rock"),
             ),
         ],
     )

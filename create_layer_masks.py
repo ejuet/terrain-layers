@@ -22,8 +22,7 @@ from masks.mask_types.paint import PaintMask, add_paint_mask_node
 from masks.noise import (
     DualNoiseConfig,
     MaskNoiseConfig,
-    _dual_noise_attr_name,
-    add_store_centered_noise_attribute,
+    create_dual_noise_cache,
     add_apply_mask_noise_from_attribute,
 )
 
@@ -178,32 +177,15 @@ def create_terrain_layers(config: TerrainConfig):
     # Remaining starts at 1.0
     remaining: MaskSocket = gn_value_float(ng, 1.0, label="Remaining:Start")
 
-    # Gather unique dual configs actually used by layers.
-    duals_in_use: list[DualNoiseConfig] = []
-    for layer in layers_sorted:
-        if layer.mask_noise is None:
-            continue
-        d = layer.mask_noise.dual
-        if d not in duals_in_use:
-            duals_in_use.append(d)
-    # Create a mapping dual->attribute name, and store each once.
-    dual_to_attr: dict[DualNoiseConfig, str] = {}
-    for i, d in enumerate(duals_in_use):
-        attr = _dual_noise_attr_name(d)
-        dual_to_attr[d] = attr
-
-        prev_geo, created = add_store_centered_noise_attribute(
-            ng,
-            input_geo_socket=prev_geo,
-            attr_name=attr,
-            dual=d,
-        )
-
-        # Layout the shared noise blocks vertically
-        base_y = 520 - (i * 220)
-        for n in created:
-            n.location.y = base_y
-        frame_nodes(ng, f"Shared: Centered Noise ({attr})", created)
+    # Create and cache dual noise attributes
+    dual_to_attr, prev_geo = create_dual_noise_cache(
+        [
+            layer.mask_noise.dual if layer.mask_noise else None
+            for layer in layers_sorted
+        ],
+        prev_geo,
+        ng,
+    )
 
     for layer in layers_sorted:
         layer_nodes = []

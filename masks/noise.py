@@ -4,6 +4,7 @@ from typing import Any
 from dataclasses import dataclass
 from utility.geo_nodes import remove_node_group
 from masks.mask_types.type_helpers import MaskSocket
+from utility.frame_nodes import frame_nodes
 
 NOISE_ATTR_PREFIX = "__MaskNoiseCentered"
 
@@ -361,3 +362,29 @@ def add_apply_mask_noise_from_attribute(
     apply.inputs["Zone Softness"].default_value = float(noise.zone_softness)
 
     return apply.outputs["Mask"], created
+
+
+def create_dual_noise_cache(
+    dual_noises: list[DualNoiseConfig | None], prev_geo: MaskSocket, ng
+) -> tuple[dict[DualNoiseConfig, str], MaskSocket]:  # todo type
+    """Creates and caches dual noise attributes for all dual noise configs used by layers."""
+    duals_in_use: list[DualNoiseConfig] = []
+    for d in dual_noises:
+        if d is None:
+            continue
+        if d not in duals_in_use:
+            duals_in_use.append(d)
+    dual_to_attr: dict[DualNoiseConfig, str] = {}
+    for i, d in enumerate(duals_in_use):
+        attr = _dual_noise_attr_name(d)
+        dual_to_attr[d] = attr
+
+        prev_geo, created = add_store_centered_noise_attribute(
+            ng,
+            input_geo_socket=prev_geo,
+            attr_name=attr,
+            dual=d,
+        )
+
+        frame_nodes(ng, f"Shared: Centered Noise ({attr})", created)
+    return dual_to_attr, prev_geo

@@ -20,9 +20,27 @@ importlib.reload(utility.geo_nodes)
 import utility.rearrange
 
 importlib.reload(utility.rearrange)
+
 import utility.nodes
 
 importlib.reload(utility.nodes)
+
+# ----------------------------
+# Masks
+# ----------------------------
+import masks.mask_types.height
+
+importlib.reload(masks.mask_types.height)
+import masks.mask_types.slope
+
+importlib.reload(masks.mask_types.slope)
+import masks.mask_types
+
+importlib.reload(masks.mask_types)
+
+import masks.mask_types.type_helpers
+
+importlib.reload(masks.mask_types.type_helpers)
 
 # --------------------------------------------------------------------
 # Run the script

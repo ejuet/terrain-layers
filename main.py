@@ -12,6 +12,8 @@ importlib.reload(create_layer_masks)
 # utility
 import utility.geo_nodes
 importlib.reload(utility.geo_nodes)
+import utility.rearrange
+importlib.reload(utility.rearrange)
 
 # ----------------------------
 # Run the script

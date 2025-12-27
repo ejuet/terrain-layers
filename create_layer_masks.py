@@ -1,6 +1,6 @@
 import bpy
 from utility.geo_nodes import active_mesh_object, remove_node_group, ensure_geo_nodes_modifier
-
+from utility.rearrange import arrange_nodes
 """
 Terrain Layer Mask Utilities (only has to work for Blender 5.0.0+)
 """
@@ -146,6 +146,8 @@ def create_terrain_layers(config):
     mod = ensure_geo_nodes_modifier(obj, mod_name)
     mod.node_group = ng
     mod.name = mod_name
+    
+    arrange_nodes(ng)
 
     return ng
 

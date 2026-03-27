@@ -37,6 +37,18 @@ def _collect_collection_objects(
     return result
 
 
+def _set_object_info_as_instance(node: bpy.types.Node) -> None:
+    as_instance_input = node.inputs.get("As Instance")
+    if as_instance_input is not None:
+        as_instance_input.default_value = True
+        return
+    if hasattr(node, "as_instance"):
+        try:
+            node.as_instance = True
+        except Exception:
+            pass
+
+
 def create_scatter_biomes(config: TerrainConfig):
     obj = active_mesh_object()
     scatter_layers = [
@@ -132,17 +144,22 @@ def create_scatter_biomes(config: TerrainConfig):
         if len(collection_objects) == 1:
             object_info = nodes.new("GeometryNodeObjectInfo")
             object_info.transform_space = "ORIGINAL"
+            _set_object_info_as_instance(object_info)
             object_info.inputs["Object"].default_value = collection_objects[0]
             links.new(object_info.outputs["Geometry"], instance.inputs["Instance"])
             layer_nodes.append(object_info)
         else:
             join_payload = nodes.new("GeometryNodeJoinGeometry")
             layer_nodes.append(join_payload)
+            instance.inputs["Pick Instance"].default_value = True
             for scatter_object in collection_objects:
                 object_info = nodes.new("GeometryNodeObjectInfo")
                 object_info.transform_space = "ORIGINAL"
+                _set_object_info_as_instance(object_info)
                 object_info.inputs["Object"].default_value = scatter_object
-                links.new(object_info.outputs["Geometry"], join_payload.inputs["Geometry"])
+                links.new(
+                    object_info.outputs["Geometry"], join_payload.inputs["Geometry"]
+                )
                 layer_nodes.append(object_info)
             links.new(join_payload.outputs["Geometry"], instance.inputs["Instance"])
 

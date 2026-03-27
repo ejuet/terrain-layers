@@ -42,7 +42,7 @@ def run():
                 ),
                 scatter_biome=ScatterBiome(
                     collection_name="Forest_Trees",
-                    density=0.2,
+                    density=0.02,
                     seed=13,
                     scale_min=0.9,
                     scale_max=1.35,

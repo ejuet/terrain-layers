@@ -1,6 +1,7 @@
 from config.config_types import (
     TerrainConfig,
     Layer,
+    ScatterBiome,
 )
 from masks.mask_types.height import HeightMask
 from masks.mask_types.slope import SlopeMask
@@ -8,6 +9,7 @@ from masks.mask_types.paint import PaintMask
 from masks.noise import DualNoiseConfig, MaskNoiseConfig
 
 from masks.create_layer_masks import create_terrain_layers
+from biomes.create_scatter_biomes import create_scatter_biomes
 
 from shader.create_shader import create_terrain_shader
 from shader.material_types import (
@@ -26,6 +28,7 @@ def run():
 
     config = TerrainConfig(
         geometry_modifier_name="Terrain_Layer_Masks",
+        scatter_modifier_name="Terrain_Scatter_Biomes",
         layers=[
             Layer(
                 name="Underwater",
@@ -36,6 +39,13 @@ def run():
                     uv_scale=2.0,
                     uv_warp=UVWarpConfig(),
                     uv_anti_tiling=UVAntiTilingConfig(),
+                ),
+                scatter_biome=ScatterBiome(
+                    collection_name="Forest_Trees",
+                    density=0.2,
+                    seed=13,
+                    scale_min=0.9,
+                    scale_max=1.35,
                 ),
             ),
             Layer(
@@ -131,4 +141,5 @@ def run():
     )
 
     create_terrain_layers(config)
+    create_scatter_biomes(config)
     create_terrain_shader(config)

@@ -96,6 +96,14 @@ importlib.reload(shader.create_shader)
 import shader.helpers
 
 importlib.reload(shader.helpers)
+
+# ----------------------------
+# Biomes
+# ----------------------------
+import biomes.create_scatter_biomes
+
+importlib.reload(biomes.create_scatter_biomes)
+
 # --------------------------------------------------------------------
 # Run the script
 # --------------------------------------------------------------------

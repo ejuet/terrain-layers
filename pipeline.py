@@ -67,6 +67,13 @@ def run():
                     zone_softness=1.0,
                 ),
                 ground_material=GroundMaterial("Sand"),
+                scatter_biome=ScatterBiome(
+                    collection_name="Beach_Objects",
+                    density=0.02,
+                    seed=15,
+                    scale_min=0.9,
+                    scale_max=1.35,
+                ),
             ),
             Layer(
                 name="Grass",

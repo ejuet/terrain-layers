@@ -2,6 +2,99 @@
 import bpy
 
 
+def _find_node_tree_owner(node_tree: bpy.types.NodeTree):
+    """
+    Find the object that exposes this node tree in Blender's UI context.
+
+    Returns a tuple of:
+    - object
+    - owner kind: "modifier" or "material"
+    - owner payload: modifier instance or material slot index
+    """
+    for obj in bpy.data.objects:
+        for mod in getattr(obj, "modifiers", []):
+            if getattr(mod, "type", None) == "NODES" and mod.node_group == node_tree:
+                return obj, "modifier", mod
+
+        materials = getattr(getattr(obj, "data", None), "materials", None)
+        if materials is None:
+            continue
+        for slot_index, mat in enumerate(materials):
+            if mat is not None and getattr(mat, "node_tree", None) == node_tree:
+                return obj, "material", slot_index
+
+    return None, None, None
+
+
+def _activate_owner_for_node_tree(node_tree: bpy.types.NodeTree):
+    """
+    Temporarily select and activate the object that owns the given node tree.
+
+    This helps Node Arrange operators that rely on Blender's current object or
+    active modifier/material selection rather than only the visible node editor.
+    Returns a restore callback.
+    """
+    owner_obj, owner_kind, owner_payload = _find_node_tree_owner(node_tree)
+    if owner_obj is None:
+        return lambda: None
+
+    view_layer = bpy.context.view_layer
+    prev_active = view_layer.objects.active
+    prev_selected = {
+        obj.name: bool(obj.select_get()) for obj in view_layer.objects if obj.name in bpy.data.objects
+    }
+    prev_active_material_index = getattr(owner_obj, "active_material_index", None)
+    prev_active_modifier = None
+    if owner_kind == "modifier":
+        prev_active_modifier = getattr(getattr(owner_obj, "modifiers", None), "active", None)
+
+    try:
+        owner_obj.select_set(True)
+        view_layer.objects.active = owner_obj
+
+        if owner_kind == "modifier":
+            try:
+                owner_obj.modifiers.active = owner_payload
+            except Exception:
+                pass
+        elif owner_kind == "material" and owner_payload is not None:
+            try:
+                owner_obj.active_material_index = int(owner_payload)
+            except Exception:
+                pass
+    except Exception:
+        return lambda: None
+
+    def restore():
+        for obj_name, is_selected in prev_selected.items():
+            obj = bpy.data.objects.get(obj_name)
+            if obj is None:
+                continue
+            try:
+                obj.select_set(is_selected)
+            except Exception:
+                pass
+
+        try:
+            view_layer.objects.active = prev_active
+        except Exception:
+            pass
+
+        if owner_kind == "modifier" and prev_active_modifier is not None:
+            try:
+                owner_obj.modifiers.active = prev_active_modifier
+            except Exception:
+                pass
+
+        if owner_kind == "material" and prev_active_material_index is not None:
+            try:
+                owner_obj.active_material_index = prev_active_material_index
+            except Exception:
+                pass
+
+    return restore
+
+
 def _find_node_editor_context():
     wm = bpy.context.window_manager
     for window in wm.windows:
@@ -197,6 +290,7 @@ def _arrange_nodes(node_tree: bpy.types.NodeTree, *, do_redraw: bool = True):
     (window, screen, area, region, space), restore_ui = (
         _get_or_make_node_editor_context()
     )
+    restore_owner = _activate_owner_for_node_tree(node_tree)
 
     nodes = node_tree.nodes
     prev_selected = {n: bool(n.select) for n in nodes}
@@ -250,4 +344,5 @@ def _arrange_nodes(node_tree: bpy.types.NodeTree, *, do_redraw: bool = True):
             if n and n.id_data == node_tree:
                 n.select = sel
         nodes.active = prev_active
+        restore_owner()
         restore_ui()

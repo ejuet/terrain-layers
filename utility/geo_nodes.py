@@ -81,6 +81,12 @@ def group_has_io(ng: bpy.types.NodeTree, ins: list[str], outs: list[str]) -> boo
         return False
 
 
+def clear_group_interface(ng: bpy.types.NodeTree) -> None:
+    """Remove all sockets from a node group's interface before rebuilding it."""
+    for it in list(ng.interface.items_tree):
+        ng.interface.remove(it)
+
+
 def _set_object_info_as_instance(node: bpy.types.Node) -> None:
     """
     Configure an Object Info node to output instances across Blender versions.

@@ -10,6 +10,7 @@ from utility.geo_nodes import (
     get_terrain_object,
     ensure_geo_nodes_modifier,
     remove_node_group,
+    clear_group_interface,
 )
 from utility.nodes import gn_math_multiply, gn_value_float
 from utility.rearrange import arrange_nodes
@@ -18,12 +19,6 @@ from utility.rearrange import arrange_nodes
 def _safe_key(s: str) -> str:
     s = (s or "").strip()
     return "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in s) or "Biome"
-
-
-def _clear_group_interface(ng: bpy.types.NodeTree) -> None:
-    """Remove all sockets from a node group's interface before rebuilding it."""
-    for it in list(ng.interface.items_tree):
-        ng.interface.remove(it)
 
 
 def _scatter_payload_group_name(layer: Layer, biome: ScatterBiome) -> str:
@@ -62,7 +57,7 @@ def create_scatter_payload_group(
     group_name = _scatter_payload_group_name(layer, biome)
     remove_node_group(group_name)
     ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
-    _clear_group_interface(ng)
+    clear_group_interface(ng)
     ng.nodes.clear()
 
     ng.interface.new_socket(
@@ -212,7 +207,7 @@ def create_scatter_biomes(config: TerrainConfig):
     mod_name = config.scatter_modifier_name
     remove_node_group(mod_name)
     ng = bpy.data.node_groups.new(mod_name, "GeometryNodeTree")
-    _clear_group_interface(ng)
+    clear_group_interface(ng)
     ng.nodes.clear()
 
     ng.interface.new_socket(

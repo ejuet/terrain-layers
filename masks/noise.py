@@ -2,7 +2,7 @@ import bpy
 from bpy.types import Node
 from typing import Any
 from dataclasses import dataclass
-from utility.geo_nodes import remove_node_group
+from utility.geo_nodes import remove_node_group, clear_group_interface
 from masks.mask_types.type_helpers import MaskSocket
 from utility.frame_nodes import frame_nodes
 
@@ -46,11 +46,6 @@ def _dual_noise_attr_name(dual: DualNoiseConfig) -> str:
 # ============================================================
 
 
-def _clear_group_interface(ng: bpy.types.NodeTree) -> None:
-    for it in list(ng.interface.items_tree):
-        ng.interface.remove(it)
-
-
 def create_dual_noise_centered_group(group_name: str = "GN_DualNoise2D_Centered"):
     """
     Outputs centered dual noise (all float math, Geometry Nodes-safe):
@@ -66,7 +61,7 @@ def create_dual_noise_centered_group(group_name: str = "GN_DualNoise2D_Centered"
     """
     remove_node_group(group_name)
     ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
-    _clear_group_interface(ng)
+    clear_group_interface(ng)
     ng.nodes.clear()
 
     ng.interface.new_socket("Vector", in_out="INPUT", socket_type="NodeSocketVector")
@@ -174,7 +169,7 @@ def create_apply_mask_noise_zoned_group(group_name: str = "GN_ApplyMaskNoiseZone
     """
     remove_node_group(group_name)
     ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
-    _clear_group_interface(ng)
+    clear_group_interface(ng)
     ng.nodes.clear()
 
     ng.interface.new_socket("Mask", in_out="INPUT", socket_type="NodeSocketFloat")

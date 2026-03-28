@@ -1,6 +1,7 @@
 from config.config_types import (
     TerrainConfig,
     Layer,
+    PreviewLayerColor,
     ScatterBiome,
 )
 from masks.mask_types.height import HeightMask
@@ -19,6 +20,8 @@ from shader.material_types import (
     UVAntiTilingConfig,
 )
 
+from preview_shader.create_preview_terrain_shader import create_preview_terrain_shader
+
 
 def run():
     # Two dual noise configs: default and an alternate for "Rock"
@@ -31,11 +34,13 @@ def run():
         object_name="UV_TERRAIN_TILING",
         geometry_modifier_name="Terrain_Layer_Masks",
         scatter_modifier_name="Terrain_Scatter_Biomes",
+        preview_shader_name="Terrain_Layer_Preview_Shader",
         layers=[
             Layer(
                 name="Underwater",
                 priority=0,
                 strength=1.0,
+                preview_color=PreviewLayerColor.BLUE,
                 ground_material=GroundMaterial(
                     "Muddy ground with underwater moss",
                     uv_scale=2.0,
@@ -163,4 +168,5 @@ def run():
 
     create_terrain_layers(config)
     create_scatter_biomes(config)
-    create_terrain_shader(config)
+    # create_terrain_shader(config)
+    create_preview_terrain_shader(config)

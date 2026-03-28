@@ -76,6 +76,13 @@ import config.helpers
 importlib.reload(config.helpers)
 
 # ----------------------------
+# Preview Shader
+# ----------------------------
+import preview_shader.create_preview_terrain_shader
+
+importlib.reload(preview_shader.create_preview_terrain_shader)
+
+# ----------------------------
 # Shader
 # ----------------------------
 import shader.material_types

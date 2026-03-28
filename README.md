@@ -163,6 +163,10 @@ Note:
 - Turn down `Levels_Preview` in the multires modifier settings when editing the curve, otherwise the ray projection will be very slow.
 - To create a non-curved path, add a curve object, go into edit mode, select all vertices, and press S and then 0.
   - To undo this, select a vertex (it should be displayed as black), then click it again (it should turn white) to edit a tangent point.
+- To join vertices at junctions
+  - Create a new bezier curve, go into edit mode, press `Shift+A` and add the other bezier curve inside the existing object.
+  - Select the vertices, press shift+s and "to active" to snap them together
+  - Press `Ctrl+H` to create a hook modifier for that vertex
 
 ## Installation
 

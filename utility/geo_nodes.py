@@ -4,15 +4,23 @@ import bpy
 # -----------------------------
 # Basic helpers
 # -----------------------------
-def active_mesh_object():
+def get_terrain_object(object_name: str | None = None):
     """
-    Returns the active mesh object in the scene.
-    Raises RuntimeError if no active object or not a mesh.
+    Returns the terrain object specified by name or the active object if no name is given.
+    Has to be a mesh.
+    Raises RuntimeError if the object is missing or not a mesh.
     """
-    obj = bpy.context.object
+    if object_name:
+        obj = bpy.data.objects.get(object_name)
+        if obj is None:
+            raise RuntimeError(f"Object '{object_name}' was not found.")
+    else:
+        obj = bpy.context.object
     if obj is None:
         raise RuntimeError("No active object. Select a mesh first.")
     if obj.type != "MESH":
+        if object_name:
+            raise RuntimeError(f"Object '{object_name}' must be MESH, got: {obj.type}")
         raise RuntimeError(f"Active object must be MESH, got: {obj.type}")
     return obj
 

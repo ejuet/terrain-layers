@@ -5,7 +5,7 @@ import bpy
 from config.config_types import Layer, ScatterBiome, TerrainConfig
 from utility.frame_nodes import frame_nodes
 from utility.geo_nodes import (
-    active_mesh_object,
+    get_terrain_object,
     ensure_geo_nodes_modifier,
     remove_node_group,
 )
@@ -71,7 +71,9 @@ def _set_object_info_as_instance(node: bpy.types.Node) -> None:
 
 def _scatter_payload_group_name(layer: Layer, biome: ScatterBiome) -> str:
     """Build a stable node-group name for the scatter objects used by one biome."""
-    return f"GN_ScatterObjects_{_safe_key(layer.name)}_{_safe_key(biome.collection_name)}"
+    return (
+        f"GN_ScatterObjects_{_safe_key(layer.name)}_{_safe_key(biome.collection_name)}"
+    )
 
 
 def create_scatter_payload_group(
@@ -160,7 +162,9 @@ def add_scatter_biome_nodes(
     nodes, links = ng.nodes, ng.links
     layer_frames: list[bpy.types.Node] = []
 
-    density = gn_value_float(ng, biome.density, label=f"Density:{_safe_key(layer.name)}")
+    density = gn_value_float(
+        ng, biome.density, label=f"Density:{_safe_key(layer.name)}"
+    )
     density_node = density.node
 
     attr = nodes.new("GeometryNodeInputNamedAttribute")
@@ -180,7 +184,9 @@ def add_scatter_biome_nodes(
         label=f"MaskedDensity:{_safe_key(layer.name)}",
     )
     layer_frames.append(
-        frame_nodes(ng, "Mask & Density", [density_node, attr, clamp, masked_density.node])
+        frame_nodes(
+            ng, "Mask & Density", [density_node, attr, clamp, masked_density.node]
+        )
     )
 
     distribute = nodes.new("GeometryNodeDistributePointsOnFaces")
@@ -210,7 +216,9 @@ def add_scatter_biome_nodes(
     if len(collection_objects) > 1:
         instance.inputs["Pick Instance"].default_value = True
 
-    layer_frames.append(frame_nodes(ng, "Objects & Instancing", [payload_group, instance]))
+    layer_frames.append(
+        frame_nodes(ng, "Objects & Instancing", [payload_group, instance])
+    )
 
     scale_nodes: list[bpy.types.Node] = []
     if biome.scale_min == biome.scale_max:
@@ -250,9 +258,11 @@ def add_scatter_biome_nodes(
 
 def create_scatter_biomes(config: TerrainConfig):
     """Create the Geometry Nodes modifier that scatters collection instances per layer."""
-    obj = active_mesh_object()
+    obj = get_terrain_object(config.object_name)
     scatter_layers = [
-        layer for layer in config.layers if getattr(layer, "scatter_biome", None) is not None
+        layer
+        for layer in config.layers
+        if getattr(layer, "scatter_biome", None) is not None
     ]
     if not scatter_layers:
         return None

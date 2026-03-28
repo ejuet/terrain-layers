@@ -27,6 +27,7 @@ class Layer:
 
 @dataclass(frozen=True, slots=True)
 class TerrainConfig:
+    object_name: Optional[str] = None
     geometry_modifier_name: str = "Terrain_Layer_Masks"
     scatter_modifier_name: str = "Terrain_Scatter_Biomes"
     shader_name: str = "Terrain_Layered_Shader"

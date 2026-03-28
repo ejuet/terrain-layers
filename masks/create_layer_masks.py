@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import bpy
 from utility.geo_nodes import (
-    active_mesh_object,
+    get_terrain_object,
     remove_node_group,
     ensure_geo_nodes_modifier,
 )
@@ -39,7 +39,7 @@ def no_mask(nt) -> tuple[MaskSocket, list[Node]]:
 
 
 def create_terrain_layers(config: TerrainConfig):
-    obj = active_mesh_object()
+    obj = get_terrain_object(config.object_name)
 
     if not config.layers:
         raise RuntimeError("Config has no layers.")

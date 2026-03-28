@@ -4,7 +4,7 @@ import math
 from config.config_types import TerrainConfig, Layer
 from shader.material_types import GroundMaterial, UVWarpConfig, UVAntiTilingConfig
 from shader.get_texture_image import get_material_pbr_images
-from utility.geo_nodes import active_mesh_object
+from utility.geo_nodes import get_terrain_object
 from shader.anti_repetition.uv_warp import ensure_pbr_warped_uv_group
 from shader.anti_repetition.anti_tile import ensure_pbr_antitile_uvb_fac_group
 from masks.mask_types.paint import PaintMask
@@ -228,7 +228,7 @@ def create_terrain_shader(config: TerrainConfig):
     if not config.layers:
         raise ValueError("TerrainConfig.layers must contain at least 1 layer.")
 
-    obj = active_mesh_object()
+    obj = get_terrain_object(config.object_name)
     if not obj or obj.type != "MESH":
         raise ValueError("Active object must be a mesh.")
 

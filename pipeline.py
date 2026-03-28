@@ -27,6 +27,7 @@ def run():
     dual_alt = DualNoiseConfig(scale=10.0, large_scale=2.2, large_mix=0.55, detail=0.8)
 
     config = TerrainConfig(
+        object_name="UV_TERRAIN_TILING",
         geometry_modifier_name="Terrain_Layer_Masks",
         scatter_modifier_name="Terrain_Scatter_Biomes",
         layers=[

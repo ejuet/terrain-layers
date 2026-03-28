@@ -8,6 +8,7 @@ from utility.geo_nodes import (
     get_terrain_object,
     ensure_geo_nodes_modifier,
     remove_node_group,
+    collect_collection_objects,
 )
 from utility.nodes import gn_math_multiply, gn_value_float
 from utility.rearrange import arrange_nodes
@@ -22,32 +23,6 @@ def _clear_group_interface(ng: bpy.types.NodeTree) -> None:
     """Remove all sockets from a node group's interface before rebuilding it."""
     for it in list(ng.interface.items_tree):
         ng.interface.remove(it)
-
-
-def _collect_collection_objects(
-    collection: bpy.types.Collection,
-) -> list[bpy.types.Object]:
-    """
-    Return all unique objects contained in a collection and its child collections.
-
-    The traversal is recursive so linked sub-collections also contribute payload
-    objects for scattering. Objects are de-duplicated by name to avoid building
-    the same payload entry multiple times.
-    """
-    result: list[bpy.types.Object] = []
-    seen: set[str] = set()
-
-    def visit(coll: bpy.types.Collection):
-        for obj in coll.objects:
-            if obj.name in seen:
-                continue
-            seen.add(obj.name)
-            result.append(obj)
-        for child in coll.children:
-            visit(child)
-
-    visit(collection)
-    return result
 
 
 def _set_object_info_as_instance(node: bpy.types.Node) -> None:
@@ -95,7 +70,7 @@ def create_scatter_payload_group(
             f"'{biome.collection_name}'. Link or create that collection first."
         )
 
-    collection_objects = _collect_collection_objects(collection)
+    collection_objects = collect_collection_objects(collection)
     if not collection_objects:
         raise RuntimeError(
             f"Scatter biome on layer '{layer.name}' references empty collection "
@@ -212,7 +187,7 @@ def add_scatter_biome_nodes(
             f"Scatter biome on layer '{layer.name}' references missing collection "
             f"'{biome.collection_name}'. Link or create that collection first."
         )
-    collection_objects = _collect_collection_objects(collection)
+    collection_objects = collect_collection_objects(collection)
     if len(collection_objects) > 1:
         instance.inputs["Pick Instance"].default_value = True
 

@@ -151,7 +151,7 @@ def run():
                 priority=40,
                 strength=1.0,
                 mask=PathMask(
-                    path_object_name="Path",
+                    path_collection_name="Path_Network",
                     width=1.75,
                     falloff=1.25,
                     sample_count=384,

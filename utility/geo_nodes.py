@@ -43,3 +43,25 @@ def ensure_geo_nodes_modifier(obj, name: str):
     if mod is None or mod.type != "NODES":
         mod = obj.modifiers.new(name, "NODES")
     return mod
+
+
+def collect_collection_objects(
+    collection: bpy.types.Collection,
+) -> list[bpy.types.Object]:
+    """
+    Return all unique objects contained in a collection and its child collections.
+    """
+    result: list[bpy.types.Object] = []
+    seen: set[str] = set()
+
+    def visit(coll: bpy.types.Collection):
+        for obj in coll.objects:
+            if obj.name in seen:
+                continue
+            seen.add(obj.name)
+            result.append(obj)
+        for child in coll.children:
+            visit(child)
+
+    visit(collection)
+    return result

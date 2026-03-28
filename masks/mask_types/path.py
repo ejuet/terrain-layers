@@ -4,14 +4,16 @@ from typing import Literal
 import bpy
 
 from masks.mask_types.type_helpers import MaskSocket, Node
-from utility.geo_nodes import remove_node_group
+from utility.geo_nodes import collect_collection_objects, remove_node_group
 
 
 @dataclass(frozen=True, slots=True)
 class PathMask:
     """
-    Mask that creates a gradient based on proximity to a curve object (e.g. for roads or paths).
-    path_object_name: Name of the curve object in the Blender scene that defines the path. This object must be of type CURVE.
+    Mask that creates a gradient based on proximity to one or more curve objects
+    (e.g. for roads or paths).
+    path_object_name: Optional name of a single curve object in the Blender scene.
+    path_collection_name: Optional name of a collection containing one or more curve objects.
     width: Width of the road/ The distance from the path at which the mask will reach its maximum value.
     falloff: Additional distance beyond the width where the mask will fall off to zero. Total effective distance of the mask is width + falloff.
     sample_count: Number of points to sample along the curve for raycasting. Higher values can produce smoother masks but may impact performance.
@@ -21,7 +23,8 @@ class PathMask:
     """
 
     type: Literal["path"] = "path"
-    path_object_name: str = "RoadPath"
+    path_object_name: str | None = None
+    path_collection_name: str | None = None
     width: float = 2.5
     falloff: float = 1.0
     sample_count: int = 256
@@ -30,7 +33,7 @@ class PathMask:
     ramp_high: float = 1.0
 
 
-def _ensure_path_object(path_object_name: str) -> bpy.types.Object:
+def _ensure_curve_object(path_object_name: str) -> bpy.types.Object:
     obj = bpy.data.objects.get(path_object_name)
     if obj is None:
         raise RuntimeError(f"Path mask references missing object '{path_object_name}'.")
@@ -40,6 +43,86 @@ def _ensure_path_object(path_object_name: str) -> bpy.types.Object:
             f"got: {obj.type}"
         )
     return obj
+
+
+def _resolve_path_objects(mask_def: PathMask) -> list[bpy.types.Object]:
+    """
+    Gets the curve object(s) in the scene
+    """
+    has_object = bool(mask_def.path_object_name)
+    has_collection = bool(mask_def.path_collection_name)
+
+    if has_object == has_collection:
+        raise RuntimeError(
+            "Path mask must specify exactly one of 'path_object_name' or "
+            "'path_collection_name'."
+        )
+
+    if mask_def.path_object_name:
+        return [_ensure_curve_object(mask_def.path_object_name)]
+
+    collection_name = mask_def.path_collection_name
+    collection = bpy.data.collections.get(collection_name)
+    if collection is None:
+        raise RuntimeError(
+            f"Path mask references missing collection '{collection_name}'."
+        )
+
+    curve_objects = [
+        obj for obj in collect_collection_objects(collection) if obj.type == "CURVE"
+    ]
+    if not curve_objects:
+        raise RuntimeError(
+            f"Path mask collection '{collection_name}' does not contain any CURVE "
+            "objects."
+        )
+    return curve_objects
+
+
+def _path_source_label(mask_def: PathMask) -> str:
+    if mask_def.path_object_name:
+        return mask_def.path_object_name
+    if mask_def.path_collection_name:
+        return mask_def.path_collection_name
+    return "Path"
+
+
+def _group_has_io(ng: bpy.types.NodeTree, ins: list[str], outs: list[str]) -> bool:
+    try:
+        in_names = {s.name for s in getattr(ng, "inputs", [])}
+        out_names = {s.name for s in getattr(ng, "outputs", [])}
+        return all(name in in_names for name in ins) and all(
+            name in out_names for name in outs
+        )
+    except Exception:
+        return False
+
+
+def _add_path_source_nodes(
+    nt: bpy.types.NodeTree,
+    mask_def: PathMask,
+) -> tuple[bpy.types.NodeSocket, list[Node]]:
+    path_objects = _resolve_path_objects(mask_def)
+    nodes, links = nt.nodes, nt.links
+
+    source_nodes: list[Node] = []
+    object_infos: list[bpy.types.Node] = []
+    for path_object in path_objects:
+        object_info = nodes.new("GeometryNodeObjectInfo")
+        object_info.transform_space = "RELATIVE"
+        object_info.inputs["Object"].default_value = path_object
+        source_nodes.append(object_info)
+        object_infos.append(object_info)
+
+    if len(object_infos) == 1:
+        return object_infos[0].outputs["Geometry"], source_nodes
+
+    join = nodes.new("GeometryNodeJoinGeometry")
+    source_nodes.append(join)
+    for object_info in object_infos:
+        links.new(object_info.outputs["Geometry"], join.inputs["Geometry"])
+
+    return join.outputs["Geometry"], source_nodes
 
 
 def create_path_mask_group(group_name: str = "TerrainPathMask"):
@@ -57,7 +140,7 @@ def create_path_mask_group(group_name: str = "TerrainPathMask"):
         name="Position", in_out="INPUT", socket_type="NodeSocketVector"
     )
     ng.interface.new_socket(
-        name="Path Object", in_out="INPUT", socket_type="NodeSocketObject"
+        name="Path Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
     )
     ng.interface.new_socket(name="Width", in_out="INPUT", socket_type="NodeSocketFloat")
     ng.interface.new_socket(
@@ -80,9 +163,6 @@ def create_path_mask_group(group_name: str = "TerrainPathMask"):
     nodes, links = ng.nodes, ng.links
     gin = nodes.new("NodeGroupInput")
     gout = nodes.new("NodeGroupOutput")
-
-    object_info = nodes.new("GeometryNodeObjectInfo")
-    object_info.transform_space = "RELATIVE"
 
     resample = nodes.new("GeometryNodeResampleCurve")
     try:
@@ -161,8 +241,7 @@ def create_path_mask_group(group_name: str = "TerrainPathMask"):
     ramp_min1.operation = "MINIMUM"
     ramp_min1.inputs[1].default_value = 1.0
 
-    links.new(gin.outputs["Path Object"], object_info.inputs["Object"])
-    links.new(object_info.outputs["Geometry"], resample.inputs["Curve"])
+    links.new(gin.outputs["Path Geometry"], resample.inputs["Curve"])
     links.new(gin.outputs["Sample Count"], resample.inputs["Count"])
     links.new(resample.outputs["Curve"], curve_to_points.inputs["Curve"])
 
@@ -225,24 +304,33 @@ def add_path_mask_node(
     terrain_socket: bpy.types.NodeSocket,
     group_name: str = "TerrainPathMask",
 ) -> tuple[MaskSocket, list[Node]]:
-    path_obj = _ensure_path_object(mask_def.path_object_name)
-
-    mask_group = bpy.data.node_groups.get(group_name) or create_path_mask_group(
-        group_name
-    )
+    mask_group = bpy.data.node_groups.get(group_name)
+    if mask_group is None or not _group_has_io(
+        mask_group,
+        ins=[
+            "Terrain",
+            "Position",
+            "Path Geometry",
+            "Width",
+            "Falloff",
+            "Sample Count",
+            "Ray Length",
+            "Ramp Low",
+            "Ramp High",
+        ],
+        outs=["Mask"],
+    ):
+        mask_group = create_path_mask_group(group_name)
+    path_geometry, source_nodes = _add_path_source_nodes(nt, mask_def)
 
     node = nt.nodes.new("GeometryNodeGroup")
     node.node_tree = mask_group
-    node.label = f"Mask: Path ({mask_def.path_object_name})"
+    node.label = f"Mask: Path ({_path_source_label(mask_def)})"
 
     pos_node = nt.nodes.new("GeometryNodeInputPosition")
     nt.links.new(terrain_socket, node.inputs["Terrain"])
     nt.links.new(pos_node.outputs["Position"], node.inputs["Position"])
-
-    try:
-        node.inputs["Path Object"].default_value = path_obj
-    except Exception:
-        pass
+    nt.links.new(path_geometry, node.inputs["Path Geometry"])
     node.inputs["Width"].default_value = float(mask_def.width)
     node.inputs["Falloff"].default_value = float(mask_def.falloff)
     node.inputs["Sample Count"].default_value = int(mask_def.sample_count)
@@ -250,4 +338,4 @@ def add_path_mask_node(
     node.inputs["Ramp Low"].default_value = float(mask_def.ramp_low)
     node.inputs["Ramp High"].default_value = float(mask_def.ramp_high)
 
-    return node.outputs["Mask"], [pos_node, node]
+    return node.outputs["Mask"], [*source_nodes, pos_node, node]

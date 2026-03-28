@@ -12,3 +12,4 @@
 ## Minor
 
 - [ ] Specify multiple terrain objects/ a collection instead of just one
+- [ ] See if there is a more convenient way of importing textures

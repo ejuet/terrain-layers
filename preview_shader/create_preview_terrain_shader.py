@@ -115,6 +115,10 @@ def _choose_layer_colors(
 
 
 def create_preview_terrain_shader(config: TerrainConfig):
+    """
+    Create a simple preview shader that visualizes the terrain layers in solid mode.
+    Turn down Levels_Viewport on the multires modifier of the terrain when editing paths for less lagging.
+    """
     if not config.layers:
         raise ValueError("TerrainConfig.layers must contain at least 1 layer.")
 

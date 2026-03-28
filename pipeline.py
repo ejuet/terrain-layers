@@ -168,5 +168,5 @@ def run():
 
     create_terrain_layers(config)
     create_scatter_biomes(config)
-    # create_terrain_shader(config)
+    create_terrain_shader(config)
     create_preview_terrain_shader(config)

@@ -6,6 +6,7 @@ from config.config_types import (
 from masks.mask_types.height import HeightMask
 from masks.mask_types.slope import SlopeMask
 from masks.mask_types.paint import PaintMask
+from masks.mask_types.path import PathMask
 from masks.noise import DualNoiseConfig, MaskNoiseConfig
 
 from masks.create_layer_masks import create_terrain_layers
@@ -144,6 +145,18 @@ def run():
                     image_name="IMG_Terrain_VolcanosMask",
                 ),
                 ground_material=GroundMaterial("04 Vulcanic Rock Surface D"),
+            ),
+            Layer(
+                name="Roads",
+                priority=40,
+                strength=1.0,
+                mask=PathMask(
+                    path_object_name="Path",
+                    width=1.75,
+                    falloff=1.25,
+                    sample_count=384,
+                ),
+                ground_material=GroundMaterial("Sand"),
             ),
         ],
     )

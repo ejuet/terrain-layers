@@ -3,7 +3,7 @@
 A Blender addon to create and manage terrain layers. This python module allows to
 
 - define and create terrain layers with different materials and properties in a python dictionary
-- calculate masks for each layer based on height, slope, and other factors defined in the configuration
+- calculate masks for each layer based on height, slope, paint masks, path masks, and other factors defined in the configuration
 - automatically generate a shader that blends the layers based on their masks
 
 ## Example Configuration
@@ -121,9 +121,26 @@ config = TerrainConfig(
             ),
             ground_material=GroundMaterial("04 Vulcanic Rock Surface D"),
         ),
+        Layer(
+            name="Roads",
+            priority=40,
+            strength=1.0,
+            mask=PathMask(
+                path_object_name="RoadPath",
+                width=1.75,
+                falloff=1.25,
+                sample_count=384,
+            ),
+            ground_material=GroundMaterial("Dirt road"),
+        ),
     ],
 )
 ```
+
+`PathMask` is the MVP road workflow. It references a Blender curve object,
+samples it into points, ray-projects those points downward onto the terrain, and
+builds a mask from the terrain's distance to that projected path. The recommended
+authoring workflow is to use a Bezier curve object placed roughly above the terrain.
 
 ### Geometry Nodes
 

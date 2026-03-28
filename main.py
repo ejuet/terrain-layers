@@ -36,6 +36,10 @@ import masks.mask_types.paint
 
 importlib.reload(masks.mask_types.paint)
 
+import masks.mask_types.path
+
+importlib.reload(masks.mask_types.path)
+
 import masks.mask_types.__init__
 
 importlib.reload(masks.mask_types.__init__)

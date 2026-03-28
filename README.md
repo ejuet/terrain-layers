@@ -154,6 +154,16 @@ The addon automatically generates a shader that blends the different terrain lay
 
 <img src="example_images/shader.png" alt="Shader" max-width="600px"/>
 
+### Paths
+
+You can create paths (e.g. for roads) by adding a curve object to the scene and referencing it in a `PathMask` layer. The addon will sample the curve, project it onto the terrain, and create a mask based on the distance to that path.
+
+Note:
+
+- Turn down `Levels_Preview` in the multires modifier settings when editing the curve, otherwise the ray projection will be very slow.
+- To create a non-curved path, add a curve object, go into edit mode, select all vertices, and press S and then 0.
+  - To undo this, select a vertex (it should be displayed as black), then click it again (it should turn white) to edit a tangent point.
+
 ## Installation
 
 - Clone the repository and install the python module as a Blender addon.

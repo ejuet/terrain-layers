@@ -2,7 +2,7 @@
 
 ## Current
 
-- [ ] Paths that create layers
+- [X] Paths that create layers
 - [ ] Scatter Objects alongside paths
 
 ## Future

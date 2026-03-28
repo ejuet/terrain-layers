@@ -5,11 +5,11 @@ import bpy
 
 from masks.mask_types.type_helpers import MaskSocket, Node
 from utility.geo_nodes import (
-    add_object_info_nodes,
     collect_collection_objects,
     group_has_io,
     remove_node_group,
 )
+from utility.object_info_group import create_object_info_group
 
 
 @dataclass(frozen=True, slots=True)
@@ -92,17 +92,29 @@ def _path_source_label(mask_def: PathMask) -> str:
     return "Path"
 
 
+def _path_source_group_name(mask_def: PathMask) -> str:
+    label = _path_source_label(mask_def)
+    safe = "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in label)
+    return f"GN_PathSource_{safe or 'Path'}"
+
+
 def _add_path_source_nodes(
     nt: bpy.types.NodeTree,
     mask_def: PathMask,
 ) -> tuple[bpy.types.NodeSocket, list[Node]]:
     path_objects = _resolve_path_objects(mask_def)
-    return add_object_info_nodes(
-        nt,
+    source_group = create_object_info_group(
+        group_name=_path_source_group_name(mask_def),
         objects=path_objects,
         transform_space="RELATIVE",
         as_instance=False,
+        output_name="Geometry",
+        frame_label=f"Objects: {_path_source_label(mask_def)}",
     )
+    group_node = nt.nodes.new("GeometryNodeGroup")
+    group_node.node_tree = source_group
+    group_node.label = f"Path Source: {_path_source_label(mask_def)}"
+    return group_node.outputs["Geometry"], [group_node]
 
 
 def create_path_mask_group(group_name: str = "TerrainPathMask"):

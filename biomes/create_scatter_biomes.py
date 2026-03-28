@@ -5,13 +5,13 @@ import bpy
 from config.config_types import Layer, ScatterBiome, TerrainConfig
 from utility.frame_nodes import frame_nodes
 from utility.geo_nodes import (
-    add_object_info_nodes,
     collect_collection_objects,
     get_terrain_object,
     ensure_geo_nodes_modifier,
     remove_node_group,
     clear_group_interface,
 )
+from utility.object_info_group import create_object_info_group
 from utility.nodes import gn_math_multiply, gn_value_float
 from utility.rearrange import arrange_nodes
 
@@ -55,29 +55,15 @@ def create_scatter_payload_group(
         )
 
     group_name = _scatter_payload_group_name(layer, biome)
-    remove_node_group(group_name)
-    ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
-    clear_group_interface(ng)
-    ng.nodes.clear()
-
-    ng.interface.new_socket(
-        name="Instances", in_out="OUTPUT", socket_type="NodeSocketGeometry"
-    )
-
-    nodes, links = ng.nodes, ng.links
-    gout = nodes.new("NodeGroupOutput")
-
-    payload_socket, payload_nodes = add_object_info_nodes(
-        ng,
+    payload_group = create_object_info_group(
+        group_name=group_name,
         objects=collection_objects,
         transform_space="ORIGINAL",
         as_instance=True,
+        output_name="Instances",
+        frame_label=f"Objects: {biome.collection_name}",
     )
-    links.new(payload_socket, gout.inputs["Instances"])
-
-    frame_nodes(ng, f"Objects: {biome.collection_name}", payload_nodes)
-    arrange_nodes(ng)
-    return ng
+    return payload_group
 
 
 def add_scatter_biome_nodes(

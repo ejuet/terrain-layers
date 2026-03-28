@@ -22,6 +22,10 @@ import utility.nodes
 
 importlib.reload(utility.nodes)
 
+import utility.object_info_group
+
+importlib.reload(utility.object_info_group)
+
 # ----------------------------
 # Masks
 # ----------------------------

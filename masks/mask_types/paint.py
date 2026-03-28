@@ -1,5 +1,5 @@
 from typing import Literal
-from utility.geo_nodes import remove_node_group
+from utility.geo_nodes import group_has_io, remove_node_group
 import bpy
 from masks.mask_types.type_helpers import MaskSocket, Node
 from dataclasses import dataclass
@@ -54,15 +54,6 @@ def _ensure_paint_image(image_name: str, *, width: int, height: int, use_alpha: 
         except Exception:
             pass
     return img
-
-
-def _group_has_io(ng: bpy.types.NodeTree, ins: list[str], outs: list[str]) -> bool:
-    try:
-        in_names = {s.name for s in getattr(ng, "inputs", [])}
-        out_names = {s.name for s in getattr(ng, "outputs", [])}
-        return all(n in in_names for n in ins) and all(n in out_names for n in outs)
-    except Exception:
-        return False
 
 
 def _math(nt: bpy.types.NodeTree, op: str, label: str = "") -> bpy.types.Node:
@@ -193,7 +184,7 @@ def add_paint_mask_node(
     )
 
     mask_group = bpy.data.node_groups.get(group_name)
-    if mask_group is None or not _group_has_io(
+    if mask_group is None or not group_has_io(
         mask_group,
         ins=["UV", "Image", "Ramp Low", "Ramp High"],
         outs=["Mask"],

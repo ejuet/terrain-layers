@@ -4,7 +4,12 @@ from typing import Literal
 import bpy
 
 from masks.mask_types.type_helpers import MaskSocket, Node
-from utility.geo_nodes import collect_collection_objects, remove_node_group
+from utility.geo_nodes import (
+    add_object_info_nodes,
+    collect_collection_objects,
+    group_has_io,
+    remove_node_group,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -87,42 +92,17 @@ def _path_source_label(mask_def: PathMask) -> str:
     return "Path"
 
 
-def _group_has_io(ng: bpy.types.NodeTree, ins: list[str], outs: list[str]) -> bool:
-    try:
-        in_names = {s.name for s in getattr(ng, "inputs", [])}
-        out_names = {s.name for s in getattr(ng, "outputs", [])}
-        return all(name in in_names for name in ins) and all(
-            name in out_names for name in outs
-        )
-    except Exception:
-        return False
-
-
 def _add_path_source_nodes(
     nt: bpy.types.NodeTree,
     mask_def: PathMask,
 ) -> tuple[bpy.types.NodeSocket, list[Node]]:
     path_objects = _resolve_path_objects(mask_def)
-    nodes, links = nt.nodes, nt.links
-
-    source_nodes: list[Node] = []
-    object_infos: list[bpy.types.Node] = []
-    for path_object in path_objects:
-        object_info = nodes.new("GeometryNodeObjectInfo")
-        object_info.transform_space = "RELATIVE"
-        object_info.inputs["Object"].default_value = path_object
-        source_nodes.append(object_info)
-        object_infos.append(object_info)
-
-    if len(object_infos) == 1:
-        return object_infos[0].outputs["Geometry"], source_nodes
-
-    join = nodes.new("GeometryNodeJoinGeometry")
-    source_nodes.append(join)
-    for object_info in object_infos:
-        links.new(object_info.outputs["Geometry"], join.inputs["Geometry"])
-
-    return join.outputs["Geometry"], source_nodes
+    return add_object_info_nodes(
+        nt,
+        objects=path_objects,
+        transform_space="RELATIVE",
+        as_instance=False,
+    )
 
 
 def create_path_mask_group(group_name: str = "TerrainPathMask"):
@@ -305,7 +285,7 @@ def add_path_mask_node(
     group_name: str = "TerrainPathMask",
 ) -> tuple[MaskSocket, list[Node]]:
     mask_group = bpy.data.node_groups.get(group_name)
-    if mask_group is None or not _group_has_io(
+    if mask_group is None or not group_has_io(
         mask_group,
         ins=[
             "Terrain",

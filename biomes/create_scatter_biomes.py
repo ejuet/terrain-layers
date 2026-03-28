@@ -5,10 +5,11 @@ import bpy
 from config.config_types import Layer, ScatterBiome, TerrainConfig
 from utility.frame_nodes import frame_nodes
 from utility.geo_nodes import (
+    add_object_info_nodes,
+    collect_collection_objects,
     get_terrain_object,
     ensure_geo_nodes_modifier,
     remove_node_group,
-    collect_collection_objects,
 )
 from utility.nodes import gn_math_multiply, gn_value_float
 from utility.rearrange import arrange_nodes
@@ -23,25 +24,6 @@ def _clear_group_interface(ng: bpy.types.NodeTree) -> None:
     """Remove all sockets from a node group's interface before rebuilding it."""
     for it in list(ng.interface.items_tree):
         ng.interface.remove(it)
-
-
-def _set_object_info_as_instance(node: bpy.types.Node) -> None:
-    """
-    Configure an Object Info node to output an instance payload when Blender
-    exposes that setting.
-
-    Blender has exposed this toggle both as a property and as an input socket
-    across versions, so the helper supports either form.
-    """
-    as_instance_input = node.inputs.get("As Instance")
-    if as_instance_input is not None:
-        as_instance_input.default_value = True
-        return
-    if hasattr(node, "as_instance"):
-        try:
-            node.as_instance = True
-        except Exception:
-            pass
 
 
 def _scatter_payload_group_name(layer: Layer, biome: ScatterBiome) -> str:
@@ -90,28 +72,13 @@ def create_scatter_payload_group(
     nodes, links = ng.nodes, ng.links
     gout = nodes.new("NodeGroupOutput")
 
-    payload_nodes: list[bpy.types.Node] = []
-
-    if len(collection_objects) == 1:
-        object_info = nodes.new("GeometryNodeObjectInfo")
-        object_info.transform_space = "ORIGINAL"
-        _set_object_info_as_instance(object_info)
-        object_info.inputs["Object"].default_value = collection_objects[0]
-        links.new(object_info.outputs["Geometry"], gout.inputs["Instances"])
-        payload_nodes.append(object_info)
-    else:
-        join_payload = nodes.new("GeometryNodeJoinGeometry")
-        payload_nodes.append(join_payload)
-
-        for scatter_object in collection_objects:
-            object_info = nodes.new("GeometryNodeObjectInfo")
-            object_info.transform_space = "ORIGINAL"
-            _set_object_info_as_instance(object_info)
-            object_info.inputs["Object"].default_value = scatter_object
-            links.new(object_info.outputs["Geometry"], join_payload.inputs["Geometry"])
-            payload_nodes.append(object_info)
-
-        links.new(join_payload.outputs["Geometry"], gout.inputs["Instances"])
+    payload_socket, payload_nodes = add_object_info_nodes(
+        ng,
+        objects=collection_objects,
+        transform_space="ORIGINAL",
+        as_instance=True,
+    )
+    links.new(payload_socket, gout.inputs["Instances"])
 
     frame_nodes(ng, f"Objects: {biome.collection_name}", payload_nodes)
     arrange_nodes(ng)

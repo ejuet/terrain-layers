@@ -8,6 +8,7 @@
 ## Future
 
 - [ ] Make scatter biomes have multiple layers depending on objects, e.g. dirt beneath trees and grass everywhere else. Needs restructuring of the pipeline/ config
+- [ ] Add scatter biome settings for rotation, e.g. so that trees are always upright and not along the normal of the terrain
 
 ## Minor
 

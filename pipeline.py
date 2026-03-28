@@ -40,13 +40,6 @@ def run():
                     uv_warp=UVWarpConfig(),
                     uv_anti_tiling=UVAntiTilingConfig(),
                 ),
-                scatter_biome=ScatterBiome(
-                    collection_name="Forest_Trees",
-                    density=0.02,
-                    seed=13,
-                    scale_min=0.9,
-                    scale_max=1.35,
-                ),
             ),
             Layer(
                 name="Beach",
@@ -94,6 +87,13 @@ def run():
                     zone_softness=1.0,
                 ),
                 ground_material=GroundMaterial("Grass"),
+                scatter_biome=ScatterBiome(
+                    collection_name="Forest_Trees",
+                    density=0.02,
+                    seed=13,
+                    scale_min=0.9,
+                    scale_max=1.35,
+                ),
             ),
             Layer(
                 name="Snow",

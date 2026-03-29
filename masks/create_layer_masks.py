@@ -15,7 +15,7 @@ from masks.mask_types.type_helpers import MaskSocket, Node
 from masks.mask_types.height import add_height_mask_node, HeightMask
 from masks.mask_types.slope import SlopeMask, add_slope_mask_node
 from masks.mask_types.paint import PaintMask, add_paint_mask_node
-from masks.mask_types.road_network import (
+from masks.mask_types.path import (
     RoadNetworkMask,
     add_road_network_mask_node,
 )

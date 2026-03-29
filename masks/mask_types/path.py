@@ -6,12 +6,9 @@ from typing import Literal
 import bpy
 
 from masks.mask_types.type_helpers import MaskSocket, Node
-from utility.geo_nodes import (
-    collect_collection_objects,
-    group_has_io,
-    remove_node_group,
-)
-from utility.object_info_group import create_object_info_group
+from paths.path_deformation import DeformationSettings
+from paths.path_source import add_path_source_nodes, path_source_label
+from utility.geo_nodes import group_has_io, remove_node_group
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +19,9 @@ class RoadPathSettings:
     ray_length: float = 10000.0
     ramp_low: float = 0.0
     ramp_high: float = 1.0
+    deformation_settings: DeformationSettings = field(
+        default_factory=DeformationSettings
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +32,7 @@ class RoadPathSettingsOverride:
     ray_length: float | None = None
     ramp_low: float | None = None
     ramp_high: float | None = None
+    deformation_settings: DeformationSettings | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,7 +58,7 @@ class RoadNetworkMask:
 
     type: Literal["road_network"] = "road_network"
     paths: list[RoadNetworkPath] = field(default_factory=list)
-    path_settings: RoadPathSettings = RoadPathSettings()
+    path_settings: RoadPathSettings = field(default_factory=RoadPathSettings)
 
 
 def _merge_path_settings(
@@ -75,81 +76,22 @@ def _merge_path_settings(
     return RoadPathSettings(**values)
 
 
-def _ensure_curve_object(path_object_name: str) -> bpy.types.Object:
-    obj = bpy.data.objects.get(path_object_name)
-    if obj is None:
-        raise RuntimeError(
-            f"Road network references missing object '{path_object_name}'."
-        )
-    if obj.type != "CURVE":
-        raise RuntimeError(
-            f"Road network object '{path_object_name}' must be CURVE, got: {obj.type}"
-        )
-    return obj
-
-
-def _resolve_path_objects(path_def: RoadNetworkPath) -> list[bpy.types.Object]:
-    has_object = bool(path_def.path_object_name)
-    has_collection = bool(path_def.path_collection_name)
-
-    if has_object == has_collection:
-        raise RuntimeError(
-            "Road network path must specify exactly one of 'path_object_name' or "
-            "'path_collection_name'."
-        )
-
-    if path_def.path_object_name:
-        return [_ensure_curve_object(path_def.path_object_name)]
-
-    collection_name = path_def.path_collection_name
-    collection = bpy.data.collections.get(collection_name)
-    if collection is None:
-        raise RuntimeError(
-            f"Road network references missing collection '{collection_name}'."
-        )
-
-    curve_objects = [
-        obj for obj in collect_collection_objects(collection) if obj.type == "CURVE"
-    ]
-    if not curve_objects:
-        raise RuntimeError(
-            f"Road network collection '{collection_name}' does not contain any CURVE "
-            "objects."
-        )
-    return curve_objects
-
-
 def _path_source_label(path_def: RoadNetworkPath) -> str:
-    if path_def.path_object_name:
-        return path_def.path_object_name
-    if path_def.path_collection_name:
-        return path_def.path_collection_name
-    return "Path"
-
-
-def _path_source_group_name(path_def: RoadNetworkPath) -> str:
-    label = _path_source_label(path_def)
-    safe = "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in label)
-    return f"GN_PathSource_{safe or 'Path'}"
+    return path_source_label(
+        path_object_name=path_def.path_object_name,
+        path_collection_name=path_def.path_collection_name,
+    )
 
 
 def _add_path_source_nodes(
     nt: bpy.types.NodeTree,
     path_def: RoadNetworkPath,
 ) -> tuple[bpy.types.NodeSocket, list[Node]]:
-    path_objects = _resolve_path_objects(path_def)
-    source_group = create_object_info_group(
-        group_name=_path_source_group_name(path_def),
-        objects=path_objects,
-        transform_space="RELATIVE",
-        as_instance=False,
-        output_name="Geometry",
-        frame_label=f"Objects: {_path_source_label(path_def)}",
+    return add_path_source_nodes(
+        nt,
+        path_object_name=path_def.path_object_name,
+        path_collection_name=path_def.path_collection_name,
     )
-    group_node = nt.nodes.new("GeometryNodeGroup")
-    group_node.node_tree = source_group
-    group_node.label = f"Path Source: {_path_source_label(path_def)}"
-    return group_node.outputs["Geometry"], [group_node]
 
 
 def create_path_mask_group(group_name: str = "TerrainPathMask"):
@@ -215,6 +157,8 @@ def create_path_mask_group(group_name: str = "TerrainPathMask"):
 
     set_position = nodes.new("GeometryNodeSetPosition")
     delete_geometry = nodes.new("GeometryNodeDeleteGeometry")
+    invert_hit = nodes.new("FunctionNodeBooleanMath")
+    invert_hit.operation = "NOT"
 
     proximity = nodes.new("GeometryNodeProximity")
     try:
@@ -283,7 +227,8 @@ def create_path_mask_group(group_name: str = "TerrainPathMask"):
     links.new(hit_position, set_position.inputs["Position"])
     is_hit = raycast.outputs.get("Is Hit") or raycast.outputs[0]
     links.new(set_position.outputs["Geometry"], delete_geometry.inputs["Geometry"])
-    links.new(is_hit, delete_geometry.inputs["Selection"])
+    links.new(is_hit, invert_hit.inputs[0])
+    links.new(invert_hit.outputs["Boolean"], delete_geometry.inputs["Selection"])
 
     links.new(delete_geometry.outputs["Geometry"], proximity.inputs["Target"])
     links.new(gin.outputs["Position"], proximity.inputs["Source Position"])

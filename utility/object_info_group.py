@@ -54,6 +54,28 @@ def _add_object_info_nodes(
     return join.outputs["Geometry"], created_nodes
 
 
+def add_object_info_nodes(
+    nt: bpy.types.NodeTree,
+    *,
+    objects: list[bpy.types.Object],
+    transform_space: str = "RELATIVE",
+    as_instance: bool = False,
+    frame_label: str | None = None,
+) -> tuple[bpy.types.NodeSocket, list[bpy.types.Node]]:
+    """
+    Add Object Info nodes directly into an existing node tree.
+    """
+    output_socket, created_nodes = _add_object_info_nodes(
+        nt,
+        objects=objects,
+        transform_space=transform_space,
+        as_instance=as_instance,
+    )
+    if frame_label:
+        frame_nodes(nt, frame_label, created_nodes)
+    return output_socket, created_nodes
+
+
 def create_object_info_group(
     *,
     group_name: str,

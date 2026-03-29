@@ -7,12 +7,13 @@ from config.config_types import (
 from masks.mask_types.height import HeightMask
 from masks.mask_types.slope import SlopeMask
 from masks.mask_types.paint import PaintMask
-from masks.mask_types.road_network import (
+from masks.mask_types.path import (
     RoadNetworkMask,
     RoadNetworkPath,
     RoadPathSettings,
     RoadPathSettingsOverride,
 )
+from paths.path_deformation import DeformationSettings, create_path_deformation
 from masks.noise import DualNoiseConfig, MaskNoiseConfig
 
 from masks.create_layer_masks import create_terrain_layers
@@ -166,6 +167,12 @@ def run():
                         falloff=0.0,
                         ramp_low=0.0,
                         ramp_high=0.2,
+                        deformation_settings=DeformationSettings(
+                            enabled=True,
+                            width=2.5,
+                            falloff=3.0,
+                            strength=0.85,
+                        ),
                     ),
                     paths=[
                         RoadNetworkPath(path_collection_name="Path_Network"),
@@ -182,6 +189,7 @@ def run():
         ],
     )
 
+    create_path_deformation(config)
     create_terrain_layers(config)
     create_scatter_biomes(config)
     create_terrain_shader(config)

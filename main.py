@@ -25,6 +25,9 @@ importlib.reload(utility.nodes)
 import utility.object_info_group
 
 importlib.reload(utility.object_info_group)
+import utility.frame_nodes
+
+importlib.reload(utility.frame_nodes)
 
 # ----------------------------
 # Masks
@@ -39,6 +42,9 @@ importlib.reload(masks.mask_types.slope)
 import masks.mask_types.paint
 
 importlib.reload(masks.mask_types.paint)
+import paths.path_deformation
+
+importlib.reload(paths.path_deformation)
 
 import masks.mask_types.path
 

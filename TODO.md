@@ -3,6 +3,7 @@
 ## Current
 
 - [ ] Flatten/ Smooth terrain on paths
+- [ ] Restructure this so it is a proper python module but still works as a blender addon with hot reloading
 - [ ] Scatter Objects alongside paths
 
 ## Future

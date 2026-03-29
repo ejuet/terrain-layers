@@ -2,8 +2,6 @@
 
 ## Current
 
-- [X] Paths that create layers
-- [ ] Find out why roads with fallout=0 still have smooth edges/ fix that
 - [ ] Modify config so that there is a class RoadNetwork that can contain multiple path objects and/or multiple blender-collections of paths. For each path object or collection, you can redefine the road width etc. The road network has a property path_settings, but they can be overridden by the individual paths or collections
   - This will also later allow us to have specific scatter settings for each path of a network, e.g. the road network defines that there are lampposts every 5m, but for one street, they are every 2m and for one street, there are no lampposts at all. These settings override the road network settings
 - [ ] Flatten/ Smooth terrain on paths
@@ -18,3 +16,8 @@
 
 - [ ] Specify multiple terrain objects/ a collection instead of just one
 - [ ] See if there is a more convenient way of importing textures
+
+## Done
+
+- [X] Paths that create layers
+- [X] Find out why roads with fallout=0 still have smooth edges => use settings `falloff=0,ramp_low=0, ramp_high=0.15` to get sharper edges

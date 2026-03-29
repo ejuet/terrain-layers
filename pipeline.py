@@ -157,9 +157,10 @@ def run():
                 strength=1.0,
                 mask=PathMask(
                     path_collection_name="Path_Network",
-                    width=1.75,
-                    falloff=1.25,
-                    sample_count=384,
+                    width=1.25,
+                    falloff=0,
+                    ramp_low=0,
+                    ramp_high=0.2,
                 ),
                 ground_material=GroundMaterial("Sand"),
             ),

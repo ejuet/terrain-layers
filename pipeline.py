@@ -7,7 +7,12 @@ from config.config_types import (
 from masks.mask_types.height import HeightMask
 from masks.mask_types.slope import SlopeMask
 from masks.mask_types.paint import PaintMask
-from masks.mask_types.path import PathMask
+from masks.mask_types.road_network import (
+    RoadNetworkMask,
+    RoadNetworkPath,
+    RoadPathSettings,
+    RoadPathSettingsOverride,
+)
 from masks.noise import DualNoiseConfig, MaskNoiseConfig
 
 from masks.create_layer_masks import create_terrain_layers
@@ -155,12 +160,22 @@ def run():
                 name="Roads",
                 priority=40,
                 strength=1.0,
-                mask=PathMask(
-                    path_collection_name="Path_Network",
-                    width=1.25,
-                    falloff=0,
-                    ramp_low=0,
-                    ramp_high=0.2,
+                mask=RoadNetworkMask(
+                    path_settings=RoadPathSettings(
+                        width=1.25,
+                        falloff=0.0,
+                        ramp_low=0.0,
+                        ramp_high=0.2,
+                    ),
+                    paths=[
+                        RoadNetworkPath(path_collection_name="Path_Network"),
+                        RoadNetworkPath(
+                            path_object_name="MainRoad",
+                            path_settings=RoadPathSettingsOverride(
+                                width=2.0,
+                            ),
+                        ),
+                    ],
                 ),
                 ground_material=GroundMaterial("Sand"),
             ),

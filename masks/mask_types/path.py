@@ -1,4 +1,6 @@
-from dataclasses import dataclass
+from __future__ import annotations
+
+from dataclasses import dataclass, field, fields
 from typing import Literal
 
 import bpy
@@ -13,23 +15,7 @@ from utility.object_info_group import create_object_info_group
 
 
 @dataclass(frozen=True, slots=True)
-class PathMask:
-    """
-    Mask that creates a gradient based on proximity to one or more curve objects
-    (e.g. for roads or paths).
-    path_object_name: Optional name of a single curve object in the Blender scene.
-    path_collection_name: Optional name of a collection containing one or more curve objects.
-    width: Width of the road/ The distance from the path at which the mask will reach its maximum value.
-    falloff: Additional distance beyond the width where the mask will fall off to zero. Total effective distance of the mask is width + falloff.
-    sample_count: Number of points to sample along the curve for raycasting. Higher values can produce smoother masks but may impact performance.
-    ray_length: Maximum distance for raycasting downwards to find the terrain surface. Should be set high enough to accommodate the tallest expected terrain features.
-    ramp_low: The distance from the path at which the mask will start to ramp up from 0.
-    ramp_high: The distance from the path at which the mask will reach its maximum value of 1. Should be greater than or equal to ramp_low and less than or equal to width.
-    """
-
-    type: Literal["path"] = "path"
-    path_object_name: str | None = None
-    path_collection_name: str | None = None
+class RoadPathSettings:
     width: float = 2.5
     falloff: float = 1.0
     sample_count: int = 256
@@ -38,39 +24,88 @@ class PathMask:
     ramp_high: float = 1.0
 
 
+@dataclass(frozen=True, slots=True)
+class RoadPathSettingsOverride:
+    width: float | None = None
+    falloff: float | None = None
+    sample_count: int | None = None
+    ray_length: float | None = None
+    ramp_low: float | None = None
+    ramp_high: float | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RoadNetworkPath:
+    """
+    One road source inside a road network.
+    Exactly one of path_object_name or path_collection_name must be set.
+    path_settings overrides the network-level defaults for this source only.
+    """
+
+    path_object_name: str | None = None
+    path_collection_name: str | None = None
+    path_settings: RoadPathSettingsOverride | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RoadNetworkMask:
+    """
+    Mask that creates a road network from multiple curve objects and/or
+    collections of curve objects. Shared defaults live in path_settings and can
+    be overridden per source.
+    """
+
+    type: Literal["road_network"] = "road_network"
+    paths: list[RoadNetworkPath] = field(default_factory=list)
+    path_settings: RoadPathSettings = RoadPathSettings()
+
+
+def _merge_path_settings(
+    base: RoadPathSettings,
+    override: RoadPathSettingsOverride | None,
+) -> RoadPathSettings:
+    if override is None:
+        return base
+    values = {}
+    for field in fields(RoadPathSettings):
+        override_value = getattr(override, field.name)
+        values[field.name] = (
+            getattr(base, field.name) if override_value is None else override_value
+        )
+    return RoadPathSettings(**values)
+
+
 def _ensure_curve_object(path_object_name: str) -> bpy.types.Object:
     obj = bpy.data.objects.get(path_object_name)
     if obj is None:
-        raise RuntimeError(f"Path mask references missing object '{path_object_name}'.")
+        raise RuntimeError(
+            f"Road network references missing object '{path_object_name}'."
+        )
     if obj.type != "CURVE":
         raise RuntimeError(
-            f"Path mask object '{path_object_name}' must be CURVE for the MVP, "
-            f"got: {obj.type}"
+            f"Road network object '{path_object_name}' must be CURVE, got: {obj.type}"
         )
     return obj
 
 
-def _resolve_path_objects(mask_def: PathMask) -> list[bpy.types.Object]:
-    """
-    Gets the curve object(s) in the scene
-    """
-    has_object = bool(mask_def.path_object_name)
-    has_collection = bool(mask_def.path_collection_name)
+def _resolve_path_objects(path_def: RoadNetworkPath) -> list[bpy.types.Object]:
+    has_object = bool(path_def.path_object_name)
+    has_collection = bool(path_def.path_collection_name)
 
     if has_object == has_collection:
         raise RuntimeError(
-            "Path mask must specify exactly one of 'path_object_name' or "
+            "Road network path must specify exactly one of 'path_object_name' or "
             "'path_collection_name'."
         )
 
-    if mask_def.path_object_name:
-        return [_ensure_curve_object(mask_def.path_object_name)]
+    if path_def.path_object_name:
+        return [_ensure_curve_object(path_def.path_object_name)]
 
-    collection_name = mask_def.path_collection_name
+    collection_name = path_def.path_collection_name
     collection = bpy.data.collections.get(collection_name)
     if collection is None:
         raise RuntimeError(
-            f"Path mask references missing collection '{collection_name}'."
+            f"Road network references missing collection '{collection_name}'."
         )
 
     curve_objects = [
@@ -78,42 +113,42 @@ def _resolve_path_objects(mask_def: PathMask) -> list[bpy.types.Object]:
     ]
     if not curve_objects:
         raise RuntimeError(
-            f"Path mask collection '{collection_name}' does not contain any CURVE "
+            f"Road network collection '{collection_name}' does not contain any CURVE "
             "objects."
         )
     return curve_objects
 
 
-def _path_source_label(mask_def: PathMask) -> str:
-    if mask_def.path_object_name:
-        return mask_def.path_object_name
-    if mask_def.path_collection_name:
-        return mask_def.path_collection_name
+def _path_source_label(path_def: RoadNetworkPath) -> str:
+    if path_def.path_object_name:
+        return path_def.path_object_name
+    if path_def.path_collection_name:
+        return path_def.path_collection_name
     return "Path"
 
 
-def _path_source_group_name(mask_def: PathMask) -> str:
-    label = _path_source_label(mask_def)
+def _path_source_group_name(path_def: RoadNetworkPath) -> str:
+    label = _path_source_label(path_def)
     safe = "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in label)
     return f"GN_PathSource_{safe or 'Path'}"
 
 
 def _add_path_source_nodes(
     nt: bpy.types.NodeTree,
-    mask_def: PathMask,
+    path_def: RoadNetworkPath,
 ) -> tuple[bpy.types.NodeSocket, list[Node]]:
-    path_objects = _resolve_path_objects(mask_def)
+    path_objects = _resolve_path_objects(path_def)
     source_group = create_object_info_group(
-        group_name=_path_source_group_name(mask_def),
+        group_name=_path_source_group_name(path_def),
         objects=path_objects,
         transform_space="RELATIVE",
         as_instance=False,
         output_name="Geometry",
-        frame_label=f"Objects: {_path_source_label(mask_def)}",
+        frame_label=f"Objects: {_path_source_label(path_def)}",
     )
     group_node = nt.nodes.new("GeometryNodeGroup")
     group_node.node_tree = source_group
-    group_node.label = f"Path Source: {_path_source_label(mask_def)}"
+    group_node.label = f"Path Source: {_path_source_label(path_def)}"
     return group_node.outputs["Geometry"], [group_node]
 
 
@@ -289,9 +324,9 @@ def create_path_mask_group(group_name: str = "TerrainPathMask"):
     return ng
 
 
-def add_path_mask_node(
+def add_road_network_mask_node(
     nt,
-    mask_def: PathMask,
+    mask_def: RoadNetworkMask,
     *,
     terrain_socket: bpy.types.NodeSocket,
     group_name: str = "TerrainPathMask",
@@ -313,21 +348,48 @@ def add_path_mask_node(
         outs=["Mask"],
     ):
         mask_group = create_path_mask_group(group_name)
-    path_geometry, source_nodes = _add_path_source_nodes(nt, mask_def)
 
-    node = nt.nodes.new("GeometryNodeGroup")
-    node.node_tree = mask_group
-    node.label = f"Mask: Path ({_path_source_label(mask_def)})"
+    if not mask_def.paths:
+        raise RuntimeError("RoadNetworkMask must contain at least one path source.")
 
+    created_nodes: list[Node] = []
     pos_node = nt.nodes.new("GeometryNodeInputPosition")
-    nt.links.new(terrain_socket, node.inputs["Terrain"])
-    nt.links.new(pos_node.outputs["Position"], node.inputs["Position"])
-    nt.links.new(path_geometry, node.inputs["Path Geometry"])
-    node.inputs["Width"].default_value = float(mask_def.width)
-    node.inputs["Falloff"].default_value = float(mask_def.falloff)
-    node.inputs["Sample Count"].default_value = int(mask_def.sample_count)
-    node.inputs["Ray Length"].default_value = float(mask_def.ray_length)
-    node.inputs["Ramp Low"].default_value = float(mask_def.ramp_low)
-    node.inputs["Ramp High"].default_value = float(mask_def.ramp_high)
+    created_nodes.append(pos_node)
 
-    return node.outputs["Mask"], [*source_nodes, pos_node, node]
+    combined_mask: MaskSocket | None = None
+    for path_def in mask_def.paths:
+        settings = _merge_path_settings(mask_def.path_settings, path_def.path_settings)
+        path_geometry, source_nodes = _add_path_source_nodes(nt, path_def)
+        created_nodes.extend(source_nodes)
+
+        node = nt.nodes.new("GeometryNodeGroup")
+        node.node_tree = mask_group
+        node.label = f"Mask: Road Path ({_path_source_label(path_def)})"
+
+        nt.links.new(terrain_socket, node.inputs["Terrain"])
+        nt.links.new(pos_node.outputs["Position"], node.inputs["Position"])
+        nt.links.new(path_geometry, node.inputs["Path Geometry"])
+        node.inputs["Width"].default_value = float(settings.width)
+        node.inputs["Falloff"].default_value = float(settings.falloff)
+        node.inputs["Sample Count"].default_value = int(settings.sample_count)
+        node.inputs["Ray Length"].default_value = float(settings.ray_length)
+        node.inputs["Ramp Low"].default_value = float(settings.ramp_low)
+        node.inputs["Ramp High"].default_value = float(settings.ramp_high)
+        created_nodes.append(node)
+
+        current_mask = node.outputs["Mask"]
+        if combined_mask is None:
+            combined_mask = current_mask
+            continue
+
+        max_node = nt.nodes.new("ShaderNodeMath")
+        max_node.operation = "MAXIMUM"
+        nt.links.new(combined_mask, max_node.inputs[0])
+        nt.links.new(current_mask, max_node.inputs[1])
+        created_nodes.append(max_node)
+        combined_mask = max_node.outputs["Value"]
+
+    if combined_mask is None:
+        raise RuntimeError("RoadNetworkMask did not produce any mask output.")
+
+    return combined_mask, created_nodes

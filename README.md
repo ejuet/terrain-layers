@@ -125,11 +125,22 @@ config = TerrainConfig(
             name="Roads",
             priority=40,
             strength=1.0,
-            mask=PathMask(
-                path_object_name="RoadPath",
-                width=1.75,
-                falloff=1.25,
-                sample_count=384,
+            mask=RoadNetworkMask(
+                path_settings=RoadPathSettings(
+                    width=1.75,
+                    falloff=1.25,
+                    sample_count=256,
+                ),
+                paths=[
+                    RoadNetworkPath(path_object_name="RoadPath"),
+                    RoadNetworkPath(
+                        path_collection_name="VillageRoads",
+                        path_settings=RoadPathSettingsOverride(
+                            width=2.5,
+                            sample_count=384,
+                        ),
+                    ),
+                ],
             ),
             ground_material=GroundMaterial("Dirt road"),
         ),
@@ -137,10 +148,10 @@ config = TerrainConfig(
 )
 ```
 
-`PathMask` is the MVP road workflow. It references a Blender curve object,
-samples it into points, ray-projects those points downward onto the terrain, and
-builds a mask from the terrain's distance to that projected path. The recommended
-authoring workflow is to use a Bezier curve object placed roughly above the terrain.
+`RoadNetworkMask` is the road workflow. It can reference multiple Blender curve
+objects and/or collections of curves, ray-project them onto the terrain, and
+build one combined mask from their distances. Shared defaults live in
+`path_settings`, and each object or collection can override them individually.
 
 ### Geometry Nodes
 
@@ -156,7 +167,7 @@ The addon automatically generates a shader that blends the different terrain lay
 
 ### Paths
 
-You can create paths (e.g. for roads) by adding a curve object to the scene and referencing it in a `PathMask` layer. The addon will sample the curve, project it onto the terrain, and create a mask based on the distance to that path.
+You can create roads by adding curve objects to the scene and referencing them in a `RoadNetworkMask` layer. Each entry can point to either one curve object or one collection of curves. The addon samples those curves, projects them onto the terrain, and creates one combined road mask.
 
 Note:
 

@@ -15,7 +15,10 @@ from masks.mask_types.type_helpers import MaskSocket, Node
 from masks.mask_types.height import add_height_mask_node, HeightMask
 from masks.mask_types.slope import SlopeMask, add_slope_mask_node
 from masks.mask_types.paint import PaintMask, add_paint_mask_node
-from masks.mask_types.path import PathMask, add_path_mask_node
+from masks.mask_types.road_network import (
+    RoadNetworkMask,
+    add_road_network_mask_node,
+)
 from masks.noise import (
     DualNoiseConfig,
     MaskNoiseConfig,
@@ -94,8 +97,8 @@ def create_terrain_layers(config: TerrainConfig):
             mask, new_nodes = add_slope_mask_node(ng, layer.mask)
         elif isinstance(layer.mask, PaintMask):
             mask, new_nodes = add_paint_mask_node(ng, layer.mask, obj=obj)
-        elif isinstance(layer.mask, PathMask):
-            mask, new_nodes = add_path_mask_node(
+        elif isinstance(layer.mask, RoadNetworkMask):
+            mask, new_nodes = add_road_network_mask_node(
                 ng,
                 layer.mask,
                 terrain_socket=prev_geo,

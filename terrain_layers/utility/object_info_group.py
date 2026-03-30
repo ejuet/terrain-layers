@@ -1,7 +1,7 @@
 import bpy
 
 from terrain_layers.utility.frame_nodes import frame_nodes
-from terrain_layers.utility.geo_nodes import clear_group_interface, remove_node_group
+from terrain_layers.utility.geo_nodes import clear_group_interface
 from terrain_layers.utility.rearrange import arrange_nodes
 
 
@@ -88,8 +88,9 @@ def create_object_info_group(
     """
     Build a reusable node group that outputs one or more Object Info geometries.
     """
-    remove_node_group(group_name)
-    ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
+    ng = bpy.data.node_groups.get(group_name)
+    if ng is None:
+        ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
     clear_group_interface(ng)
     ng.nodes.clear()
 

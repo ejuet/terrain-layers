@@ -87,9 +87,12 @@ def _path_source_label(path_def: RoadNetworkPath) -> str:
 def _add_path_source_nodes(
     nt: bpy.types.NodeTree,
     path_def: RoadNetworkPath,
+    *,
+    group_namespace: str = "RoadPathSource",
 ) -> tuple[bpy.types.NodeSocket, list[Node]]:
     return add_path_source_nodes(
         nt,
+        group_namespace=group_namespace,
         path_object_name=path_def.path_object_name,
         path_collection_name=path_def.path_collection_name,
     )
@@ -305,7 +308,11 @@ def add_road_network_mask_node(
     combined_mask: MaskSocket | None = None
     for path_def in mask_def.paths:
         settings = _merge_path_settings(mask_def.path_settings, path_def.path_settings)
-        path_geometry, source_nodes = _add_path_source_nodes(nt, path_def)
+        path_geometry, source_nodes = _add_path_source_nodes(
+            nt,
+            path_def,
+            group_namespace="RoadPathMaskSource",
+        )
         created_nodes.extend(source_nodes)
 
         node = nt.nodes.new("GeometryNodeGroup")

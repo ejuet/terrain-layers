@@ -277,7 +277,11 @@ def add_road_network_path_deformation(
         if not deformation.enabled:
             continue
 
-        path_geometry, source_nodes = _add_path_source_nodes(nt, path_def)
+        path_geometry, source_nodes = _add_path_source_nodes(
+            nt,
+            path_def,
+            group_namespace="RoadPathDeformationSource",
+        )
         created_nodes.extend(source_nodes)
 
         node = nt.nodes.new("GeometryNodeGroup")

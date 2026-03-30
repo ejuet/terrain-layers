@@ -4,7 +4,7 @@ import bpy
 
 from terrain_layers.utility.type_helpers import Node
 from terrain_layers.utility.geo_nodes import collect_collection_objects
-from terrain_layers.utility.object_info_group import add_object_info_nodes
+from terrain_layers.utility.object_info_group import create_object_info_group
 
 
 def ensure_curve_object(path_object_name: str) -> bpy.types.Object:
@@ -66,12 +66,32 @@ def path_source_label(
     return "Path"
 
 
-def add_path_source_nodes(
-    nt: bpy.types.NodeTree,
+def _safe_key(value: str | None) -> str:
+    value = (value or "").strip()
+    return "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in value) or "Path"
+
+
+def _path_source_group_name(
     *,
+    group_namespace: str,
     path_object_name: str | None,
     path_collection_name: str | None,
-) -> tuple[bpy.types.NodeSocket, list[Node]]:
+) -> str:
+    if path_object_name:
+        source_key = f"Object_{_safe_key(path_object_name)}"
+    elif path_collection_name:
+        source_key = f"Collection_{_safe_key(path_collection_name)}"
+    else:
+        source_key = "Path"
+    return f"GN_{group_namespace}_{source_key}"
+
+
+def create_path_source_group(
+    *,
+    group_namespace: str = "RoadPathSource",
+    path_object_name: str | None,
+    path_collection_name: str | None,
+) -> bpy.types.NodeTree:
     label = path_source_label(
         path_object_name=path_object_name,
         path_collection_name=path_collection_name,
@@ -80,14 +100,36 @@ def add_path_source_nodes(
         path_object_name=path_object_name,
         path_collection_name=path_collection_name,
     )
-    path_geometry, created_nodes = add_object_info_nodes(
-        nt,
+    return create_object_info_group(
+        group_name=_path_source_group_name(
+            group_namespace=group_namespace,
+            path_object_name=path_object_name,
+            path_collection_name=path_collection_name,
+        ),
         objects=path_objects,
         transform_space="RELATIVE",
         as_instance=False,
+        output_name="Geometry",
         frame_label=f"Objects: {label}",
     )
-    for node in created_nodes:
-        if node.type == "OBJECT_INFO":
-            node.label = f"Path Source: {label}"
-    return path_geometry, created_nodes
+
+
+def add_path_source_nodes(
+    nt: bpy.types.NodeTree,
+    *,
+    group_namespace: str = "RoadPathSource",
+    path_object_name: str | None,
+    path_collection_name: str | None,
+) -> tuple[bpy.types.NodeSocket, list[Node]]:
+    label = path_source_label(
+        path_object_name=path_object_name,
+        path_collection_name=path_collection_name,
+    )
+    group_node = nt.nodes.new("GeometryNodeGroup")
+    group_node.node_tree = create_path_source_group(
+        group_namespace=group_namespace,
+        path_object_name=path_object_name,
+        path_collection_name=path_collection_name,
+    )
+    group_node.label = f"Path Source: {label}"
+    return group_node.outputs["Geometry"], [group_node]

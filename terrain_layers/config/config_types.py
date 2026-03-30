@@ -30,6 +30,7 @@ class ScatterBiome:
     seed: int = 0
     scale_min: float = 0.9
     scale_max: float = 1.3
+    keep_upright: bool = False
 
 
 @dataclass(frozen=True, slots=True)

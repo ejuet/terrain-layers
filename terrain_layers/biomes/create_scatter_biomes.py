@@ -126,7 +126,11 @@ def add_scatter_biome_nodes(
     instance = nodes.new("GeometryNodeInstanceOnPoints")
     links.new(distribute.outputs["Points"], instance.inputs["Points"])
     links.new(payload_group.outputs["Instances"], instance.inputs["Instance"])
-    if "Rotation" in distribute.outputs and "Rotation" in instance.inputs:
+    if (
+        not biome.keep_upright
+        and "Rotation" in distribute.outputs
+        and "Rotation" in instance.inputs
+    ):
         links.new(distribute.outputs["Rotation"], instance.inputs["Rotation"])
 
     collection = bpy.data.collections.get(biome.collection_name)

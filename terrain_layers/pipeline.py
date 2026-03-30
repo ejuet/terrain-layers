@@ -111,6 +111,7 @@ def run():
                     seed=13,
                     scale_min=0.9,
                     scale_max=1.35,
+                    keep_upright=True,
                 ),
             ),
             Layer(

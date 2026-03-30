@@ -6,14 +6,17 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 OUTPUT_DIR="${ROOT_DIR}/diagrams"
 TMP_DIR="${OUTPUT_DIR}/.tmp"
 PROJECT_NAME="terrain_layers"
+PACKAGE_DIR="${ROOT_DIR}/terrain_layers"
 SOURCE_DIRS=(
-  "${ROOT_DIR}/config"
-  "${ROOT_DIR}/masks"
-  "${ROOT_DIR}/shader"
-  "${ROOT_DIR}/utility"
-  "${ROOT_DIR}/biomes"
+  "${PACKAGE_DIR}/config"
+  "${PACKAGE_DIR}/masks"
+  "${PACKAGE_DIR}/shader"
+  "${PACKAGE_DIR}/utility"
+  "${PACKAGE_DIR}/biomes"
+  "${PACKAGE_DIR}/paths"
+  "${PACKAGE_DIR}/preview_shader"
 )
-PYDEPS_TARGET="${ROOT_DIR}/pipeline.py"
+PYDEPS_TARGET="${PACKAGE_DIR}/pipeline.py"
 
 if [[ -d "${ROOT_DIR}/venv" ]]; then
   # Use the repo-local virtual environment when present.
@@ -49,7 +52,7 @@ mkdir -p "${OUTPUT_DIR}" "${TMP_DIR}"
 mapfile -t PYREVERSE_TARGETS < <(
   find "${SOURCE_DIRS[@]}" -type f -name '*.py' ! -path '*/__pycache__/*' | sort
 )
-PYREVERSE_TARGETS+=("${ROOT_DIR}/pipeline.py")
+PYREVERSE_TARGETS+=("${PACKAGE_DIR}/pipeline.py")
 
 export PYTHONPATH="${ROOT_DIR}${PYTHONPATH:+:${PYTHONPATH}}"
 

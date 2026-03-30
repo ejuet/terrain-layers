@@ -10,7 +10,7 @@ from terrain_layers.masks.mask_types.path import (
     _merge_path_settings,
     _path_source_label,
 )
-from terrain_layers.masks.mask_types.type_helpers import Node
+from terrain_layers.utility.type_helpers import Node
 from terrain_layers.paths.path_types import DeformationSettings
 from terrain_layers.utility.frame_nodes import frame_nodes
 from terrain_layers.utility.geo_nodes import (

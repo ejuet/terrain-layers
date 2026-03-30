@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import bpy
 
-from terrain_layers.masks.mask_types.type_helpers import Node
+from terrain_layers.utility.type_helpers import Node
 from terrain_layers.utility.geo_nodes import collect_collection_objects
 from terrain_layers.utility.object_info_group import add_object_info_nodes
 

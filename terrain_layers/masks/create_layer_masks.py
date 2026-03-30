@@ -11,7 +11,8 @@ from terrain_layers.utility.nodes import (
     gn_value_float,
 )
 from terrain_layers.utility.frame_nodes import frame_nodes
-from terrain_layers.masks.mask_types.type_helpers import MaskSocket, Node
+from terrain_layers.utility.type_helpers import Node
+from terrain_layers.masks.mask_types.type_helpers import MaskSocket
 from terrain_layers.masks.mask_types.height import add_height_mask_node, HeightMask
 from terrain_layers.masks.mask_types.slope import SlopeMask, add_slope_mask_node
 from terrain_layers.masks.mask_types.paint import PaintMask, add_paint_mask_node

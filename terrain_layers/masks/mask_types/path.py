@@ -9,7 +9,11 @@ from terrain_layers.masks.mask_types.type_helpers import MaskSocket
 from terrain_layers.utility.type_helpers import Node
 from terrain_layers.paths.path_source import add_path_source_nodes, path_source_label
 from terrain_layers.paths.path_types import DeformationSettings
-from terrain_layers.utility.geo_nodes import group_has_io, remove_node_group
+from terrain_layers.utility.geo_nodes import (
+    clear_group_interface,
+    group_has_io,
+    remove_node_group,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +88,11 @@ def _path_source_label(path_def: RoadNetworkPath) -> str:
     )
 
 
+def _safe_key(value: str | None) -> str:
+    value = (value or "").strip()
+    return "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in value) or "Path"
+
+
 def _add_path_source_nodes(
     nt: bpy.types.NodeTree,
     path_def: RoadNetworkPath,
@@ -96,6 +105,93 @@ def _add_path_source_nodes(
         path_object_name=path_def.path_object_name,
         path_collection_name=path_def.path_collection_name,
     )
+
+
+def _road_network_mask_group_name(mask_def: RoadNetworkMask) -> str:
+    parts: list[str] = []
+    for path_def in mask_def.paths:
+        settings = _merge_path_settings(mask_def.path_settings, path_def.path_settings)
+        parts.append(
+            "_".join(
+                [
+                    _safe_key(_path_source_label(path_def)),
+                    f"W{settings.width:g}",
+                    f"F{settings.falloff:g}",
+                    f"S{settings.sample_count}",
+                    f"R{settings.ray_length:g}",
+                    f"L{settings.ramp_low:g}",
+                    f"H{settings.ramp_high:g}",
+                ]
+            ).replace(".", "_")
+        )
+    suffix = "__".join(parts)[:180] or "Empty"
+    return f"TerrainRoadNetworkMask_{suffix}"
+
+
+def create_road_network_mask_stack_group(
+    mask_def: RoadNetworkMask,
+    *,
+    mask_group: bpy.types.NodeTree,
+) -> bpy.types.NodeTree:
+    group_name = _road_network_mask_group_name(mask_def)
+    ng = bpy.data.node_groups.get(group_name)
+    if ng is None:
+        ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
+
+    clear_group_interface(ng)
+    ng.nodes.clear()
+
+    ng.interface.new_socket(
+        name="Terrain", in_out="INPUT", socket_type="NodeSocketGeometry"
+    )
+    ng.interface.new_socket(
+        name="Position", in_out="INPUT", socket_type="NodeSocketVector"
+    )
+    ng.interface.new_socket(name="Mask", in_out="OUTPUT", socket_type="NodeSocketFloat")
+
+    nodes, links = ng.nodes, ng.links
+    gin = nodes.new("NodeGroupInput")
+    gout = nodes.new("NodeGroupOutput")
+    combined_mask: bpy.types.NodeSocket | None = None
+
+    for path_def in mask_def.paths:
+        settings = _merge_path_settings(mask_def.path_settings, path_def.path_settings)
+        path_geometry, _ = _add_path_source_nodes(
+            ng,
+            path_def,
+            group_namespace="RoadPathMaskSource",
+        )
+
+        mask_node = nodes.new("GeometryNodeGroup")
+        mask_node.node_tree = mask_group
+        mask_node.label = f"Road Path Mask: {_path_source_label(path_def)}"
+
+        links.new(gin.outputs["Terrain"], mask_node.inputs["Terrain"])
+        links.new(gin.outputs["Position"], mask_node.inputs["Position"])
+        links.new(path_geometry, mask_node.inputs["Path Geometry"])
+        mask_node.inputs["Width"].default_value = float(settings.width)
+        mask_node.inputs["Falloff"].default_value = float(settings.falloff)
+        mask_node.inputs["Sample Count"].default_value = int(settings.sample_count)
+        mask_node.inputs["Ray Length"].default_value = float(settings.ray_length)
+        mask_node.inputs["Ramp Low"].default_value = float(settings.ramp_low)
+        mask_node.inputs["Ramp High"].default_value = float(settings.ramp_high)
+
+        if combined_mask is None:
+            combined_mask = mask_node.outputs["Mask"]
+            continue
+
+        max_node = nodes.new("ShaderNodeMath")
+        max_node.operation = "MAXIMUM"
+        links.new(combined_mask, max_node.inputs[0])
+        links.new(mask_node.outputs["Mask"], max_node.inputs[1])
+        combined_mask = max_node.outputs["Value"]
+
+    if combined_mask is None:
+        raise RuntimeError("RoadNetworkMask must contain at least one path source.")
+
+    links.new(combined_mask, gout.inputs["Mask"])
+
+    return ng
 
 
 def create_path_mask_group(group_name: str = "TerrainPathMask"):
@@ -305,44 +401,15 @@ def add_road_network_mask_node(
     pos_node = nt.nodes.new("GeometryNodeInputPosition")
     created_nodes.append(pos_node)
 
-    combined_mask: MaskSocket | None = None
-    for path_def in mask_def.paths:
-        settings = _merge_path_settings(mask_def.path_settings, path_def.path_settings)
-        path_geometry, source_nodes = _add_path_source_nodes(
-            nt,
-            path_def,
-            group_namespace="RoadPathMaskSource",
-        )
-        created_nodes.extend(source_nodes)
+    network_node = nt.nodes.new("GeometryNodeGroup")
+    network_node.node_tree = create_road_network_mask_stack_group(
+        mask_def,
+        mask_group=mask_group,
+    )
+    network_node.label = "Road Network Mask"
 
-        node = nt.nodes.new("GeometryNodeGroup")
-        node.node_tree = mask_group
-        node.label = f"Mask: Road Path ({_path_source_label(path_def)})"
+    nt.links.new(terrain_socket, network_node.inputs["Terrain"])
+    nt.links.new(pos_node.outputs["Position"], network_node.inputs["Position"])
+    created_nodes.append(network_node)
 
-        nt.links.new(terrain_socket, node.inputs["Terrain"])
-        nt.links.new(pos_node.outputs["Position"], node.inputs["Position"])
-        nt.links.new(path_geometry, node.inputs["Path Geometry"])
-        node.inputs["Width"].default_value = float(settings.width)
-        node.inputs["Falloff"].default_value = float(settings.falloff)
-        node.inputs["Sample Count"].default_value = int(settings.sample_count)
-        node.inputs["Ray Length"].default_value = float(settings.ray_length)
-        node.inputs["Ramp Low"].default_value = float(settings.ramp_low)
-        node.inputs["Ramp High"].default_value = float(settings.ramp_high)
-        created_nodes.append(node)
-
-        current_mask = node.outputs["Mask"]
-        if combined_mask is None:
-            combined_mask = current_mask
-            continue
-
-        max_node = nt.nodes.new("ShaderNodeMath")
-        max_node.operation = "MAXIMUM"
-        nt.links.new(combined_mask, max_node.inputs[0])
-        nt.links.new(current_mask, max_node.inputs[1])
-        created_nodes.append(max_node)
-        combined_mask = max_node.outputs["Value"]
-
-    if combined_mask is None:
-        raise RuntimeError("RoadNetworkMask did not produce any mask output.")
-
-    return combined_mask, created_nodes
+    return network_node.outputs["Mask"], created_nodes

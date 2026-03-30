@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
-from masks.mask_types import Mask
-from masks.noise import MaskNoiseConfig
-from shader.material_types import GroundMaterial
+from terrain_layers.masks.mask_types import Mask
+from terrain_layers.masks.noise import MaskNoiseConfig
+from terrain_layers.shader.material_types import GroundMaterial
 
 
 class PreviewLayerColor(str, Enum):

@@ -1,34 +1,34 @@
 from __future__ import annotations
 
 import bpy
-from utility.geo_nodes import (
+from terrain_layers.utility.geo_nodes import (
     get_terrain_object,
     remove_node_group,
     ensure_geo_nodes_modifier,
 )
-from utility.rearrange import arrange_nodes
-from utility.nodes import (
+from terrain_layers.utility.rearrange import arrange_nodes
+from terrain_layers.utility.nodes import (
     gn_value_float,
 )
-from utility.frame_nodes import frame_nodes
-from masks.mask_types.type_helpers import MaskSocket, Node
-from masks.mask_types.height import add_height_mask_node, HeightMask
-from masks.mask_types.slope import SlopeMask, add_slope_mask_node
-from masks.mask_types.paint import PaintMask, add_paint_mask_node
-from masks.mask_types.path import (
+from terrain_layers.utility.frame_nodes import frame_nodes
+from terrain_layers.masks.mask_types.type_helpers import MaskSocket, Node
+from terrain_layers.masks.mask_types.height import add_height_mask_node, HeightMask
+from terrain_layers.masks.mask_types.slope import SlopeMask, add_slope_mask_node
+from terrain_layers.masks.mask_types.paint import PaintMask, add_paint_mask_node
+from terrain_layers.masks.mask_types.path import (
     RoadNetworkMask,
     add_road_network_mask_node,
 )
-from masks.noise import (
+from terrain_layers.masks.noise import (
     DualNoiseConfig,
     MaskNoiseConfig,
     create_dual_noise_cache,
     add_apply_mask_noise_from_attribute,
 )
-from masks.priority_resolving import add_priority_resolve_node
+from terrain_layers.masks.priority_resolving import add_priority_resolve_node
 
-from config.config_types import Layer, TerrainConfig
-from config.helpers import sort_layers_by_priority
+from terrain_layers.config.config_types import Layer, TerrainConfig
+from terrain_layers.config.helpers import sort_layers_by_priority
 
 """
 Terrain Layer Mask Utilities (only has to work for Blender 5.0.0+)

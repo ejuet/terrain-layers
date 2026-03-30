@@ -1,4 +1,4 @@
-from config.config_types import Layer, TerrainConfig
+from terrain_layers.config.config_types import Layer, TerrainConfig
 
 
 def sort_layers_by_priority(layers: list[Layer]) -> list[Layer]:

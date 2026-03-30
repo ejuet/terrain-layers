@@ -1,32 +1,37 @@
-from config.config_types import (
+from terrain_layers.config.config_types import (
     TerrainConfig,
     Layer,
     PreviewLayerColor,
     ScatterBiome,
 )
-from masks.mask_types.height import HeightMask
-from masks.mask_types.slope import SlopeMask
-from masks.mask_types.paint import PaintMask
-from masks.mask_types.path import (
+from terrain_layers.masks.mask_types.height import HeightMask
+from terrain_layers.masks.mask_types.slope import SlopeMask
+from terrain_layers.masks.mask_types.paint import PaintMask
+from terrain_layers.masks.mask_types.path import (
     RoadNetworkMask,
     RoadNetworkPath,
     RoadPathSettings,
     RoadPathSettingsOverride,
 )
-from paths.path_deformation import DeformationSettings, create_path_deformation
-from masks.noise import DualNoiseConfig, MaskNoiseConfig
+from terrain_layers.paths.path_deformation import (
+    DeformationSettings,
+    create_path_deformation,
+)
+from terrain_layers.masks.noise import DualNoiseConfig, MaskNoiseConfig
 
-from masks.create_layer_masks import create_terrain_layers
-from biomes.create_scatter_biomes import create_scatter_biomes
+from terrain_layers.masks.create_layer_masks import create_terrain_layers
+from terrain_layers.biomes.create_scatter_biomes import create_scatter_biomes
 
-from shader.create_shader import create_terrain_shader
-from shader.material_types import (
+from terrain_layers.shader.create_shader import create_terrain_shader
+from terrain_layers.shader.material_types import (
     GroundMaterial,
     UVWarpConfig,
     UVAntiTilingConfig,
 )
 
-from preview_shader.create_preview_terrain_shader import create_preview_terrain_shader
+from terrain_layers.preview_shader.create_preview_terrain_shader import (
+    create_preview_terrain_shader,
+)
 
 
 def run():

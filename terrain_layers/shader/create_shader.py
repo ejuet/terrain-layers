@@ -1,15 +1,23 @@
 import bpy
 import math
 
-from config.config_types import TerrainConfig, Layer
-from shader.material_types import GroundMaterial, UVWarpConfig, UVAntiTilingConfig
-from shader.get_texture_image import get_material_pbr_images
-from utility.geo_nodes import get_terrain_object
-from shader.anti_repetition.uv_warp import ensure_pbr_warped_uv_group
-from shader.anti_repetition.anti_tile import ensure_pbr_antitile_uvb_fac_group
-from masks.mask_types.paint import PaintMask
-from shader.anti_repetition.uv_noise import get_or_create_shared_dual_noise_node
-from utility.frame_nodes import frame_nodes
+from terrain_layers.config.config_types import TerrainConfig, Layer
+from terrain_layers.shader.material_types import (
+    GroundMaterial,
+    UVWarpConfig,
+    UVAntiTilingConfig,
+)
+from terrain_layers.shader.get_texture_image import get_material_pbr_images
+from terrain_layers.utility.geo_nodes import get_terrain_object
+from terrain_layers.shader.anti_repetition.uv_warp import ensure_pbr_warped_uv_group
+from terrain_layers.shader.anti_repetition.anti_tile import (
+    ensure_pbr_antitile_uvb_fac_group,
+)
+from terrain_layers.masks.mask_types.paint import PaintMask
+from terrain_layers.shader.anti_repetition.uv_noise import (
+    get_or_create_shared_dual_noise_node,
+)
+from terrain_layers.utility.frame_nodes import frame_nodes
 
 
 def _safe_key(s: str) -> str:

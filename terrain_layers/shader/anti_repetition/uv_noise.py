@@ -1,5 +1,5 @@
 import bpy
-from shader.helpers import (
+from terrain_layers.shader.helpers import (
     rebuild_group_if_missing_inputs,
 )
 

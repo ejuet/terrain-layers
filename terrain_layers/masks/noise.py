@@ -2,9 +2,9 @@ import bpy
 from bpy.types import Node
 from typing import Any
 from dataclasses import dataclass
-from utility.geo_nodes import remove_node_group, clear_group_interface
-from masks.mask_types.type_helpers import MaskSocket
-from utility.frame_nodes import frame_nodes
+from terrain_layers.utility.geo_nodes import remove_node_group, clear_group_interface
+from terrain_layers.masks.mask_types.type_helpers import MaskSocket
+from terrain_layers.utility.frame_nodes import frame_nodes
 
 NOISE_ATTR_PREFIX = "__MaskNoiseCentered"
 

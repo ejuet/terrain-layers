@@ -2,18 +2,18 @@ from __future__ import annotations
 
 import bpy
 
-from config.config_types import Layer, ScatterBiome, TerrainConfig
-from utility.frame_nodes import frame_nodes
-from utility.geo_nodes import (
+from terrain_layers.config.config_types import Layer, ScatterBiome, TerrainConfig
+from terrain_layers.utility.frame_nodes import frame_nodes
+from terrain_layers.utility.geo_nodes import (
     collect_collection_objects,
     get_terrain_object,
     ensure_geo_nodes_modifier,
     remove_node_group,
     clear_group_interface,
 )
-from utility.object_info_group import create_object_info_group
-from utility.nodes import gn_math_multiply, gn_value_float
-from utility.rearrange import arrange_nodes
+from terrain_layers.utility.object_info_group import create_object_info_group
+from terrain_layers.utility.nodes import gn_math_multiply, gn_value_float
+from terrain_layers.utility.rearrange import arrange_nodes
 
 
 def _safe_key(s: str) -> str:

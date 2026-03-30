@@ -5,15 +5,15 @@ from typing import TYPE_CHECKING
 
 import bpy
 
-from masks.mask_types.type_helpers import Node
-from utility.frame_nodes import frame_nodes
-from utility.geo_nodes import (
+from terrain_layers.masks.mask_types.type_helpers import Node
+from terrain_layers.utility.frame_nodes import frame_nodes
+from terrain_layers.utility.geo_nodes import (
     ensure_geo_nodes_modifier,
     get_terrain_object,
     group_has_io,
     remove_node_group,
 )
-from utility.rearrange import arrange_nodes
+from terrain_layers.utility.rearrange import arrange_nodes
 
 if TYPE_CHECKING:
     from config.config_types import TerrainConfig

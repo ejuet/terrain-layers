@@ -1,9 +1,9 @@
 import bpy
 from array import array
 
-from config.config_types import Layer, PreviewLayerColor, TerrainConfig
-from shader.get_texture_image import get_material_image_for_property
-from utility.geo_nodes import get_terrain_object
+from terrain_layers.config.config_types import Layer, PreviewLayerColor, TerrainConfig
+from terrain_layers.shader.get_texture_image import get_material_image_for_property
+from terrain_layers.utility.geo_nodes import get_terrain_object
 
 _PREVIEW_COLOR_VALUES: dict[PreviewLayerColor, tuple[float, float, float, float]] = {
     PreviewLayerColor.RED: (0.92, 0.20, 0.16, 1.0),

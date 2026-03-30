@@ -1,14 +1,14 @@
 import bpy
 from bpy.types import Node
-from utility.geo_nodes import (
+from terrain_layers.utility.geo_nodes import (
     remove_node_group,
 )
-from utility.nodes import (
+from terrain_layers.utility.nodes import (
     gn_math_multiply,
     gn_math_subtract,
     gn_clamp_0_1,
 )
-from masks.mask_types.type_helpers import MaskSocket
+from terrain_layers.masks.mask_types.type_helpers import MaskSocket
 
 
 def create_priority_resolve_group(group_name: str = "TerrainPriorityResolve"):

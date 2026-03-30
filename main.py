@@ -1,135 +1,153 @@
 import sys
 import importlib
+from pathlib import Path
 
-sys.path.append("/home/lisa/Repositories/Private/terrain-layers")
+sys.path.append("/home/lisa/Repositories/Private/terrain-layers/")
 
 """
 Reload all modules to reflect recent changes without restarting Blender.
 "Ctrl+shift+O > reopen current world" is not sufficient.
 """
 
+# ------------------------------
+# Extra precautions to prevent blender from keeping stale modules
+# ------------------------------
+
+REPO_ROOT = Path("/home/lisa/Repositories/Private/terrain-layers").resolve()
+repo_root_str = str(REPO_ROOT)
+
+if repo_root_str in sys.path:
+    sys.path.remove(repo_root_str)
+sys.path.insert(0, repo_root_str)
+
+# Blender can keep stale modules alive across text reloads. Drop the package tree
+# so imports come from the refactored repository layout above.
+for module_name in list(sys.modules):
+    if module_name == "terrain_layers" or module_name.startswith("terrain_layers."):
+        del sys.modules[module_name]
+
 # ----------------------------
 # Utility
 # ----------------------------
-import utility.geo_nodes
+import terrain_layers.utility.geo_nodes
 
-importlib.reload(utility.geo_nodes)
-import utility.rearrange
+importlib.reload(terrain_layers.utility.geo_nodes)
+import terrain_layers.utility.rearrange
 
-importlib.reload(utility.rearrange)
+importlib.reload(terrain_layers.utility.rearrange)
 
-import utility.nodes
+import terrain_layers.utility.nodes
 
-importlib.reload(utility.nodes)
+importlib.reload(terrain_layers.utility.nodes)
 
-import utility.object_info_group
+import terrain_layers.utility.object_info_group
 
-importlib.reload(utility.object_info_group)
-import utility.frame_nodes
+importlib.reload(terrain_layers.utility.object_info_group)
+import terrain_layers.utility.frame_nodes
 
-importlib.reload(utility.frame_nodes)
+importlib.reload(terrain_layers.utility.frame_nodes)
 
 # ----------------------------
 # Masks
 # ----------------------------
-import masks.mask_types.height
+import terrain_layers.masks.mask_types.height
 
-importlib.reload(masks.mask_types.height)
-import masks.mask_types.slope
+importlib.reload(terrain_layers.masks.mask_types.height)
+import terrain_layers.masks.mask_types.slope
 
-importlib.reload(masks.mask_types.slope)
+importlib.reload(terrain_layers.masks.mask_types.slope)
 
-import masks.mask_types.paint
+import terrain_layers.masks.mask_types.paint
 
-importlib.reload(masks.mask_types.paint)
-import paths.path_deformation
+importlib.reload(terrain_layers.masks.mask_types.paint)
+import terrain_layers.paths.path_deformation
 
-importlib.reload(paths.path_deformation)
+importlib.reload(terrain_layers.paths.path_deformation)
 
-import masks.mask_types.path
+import terrain_layers.masks.mask_types.path
 
-importlib.reload(masks.mask_types.path)
+importlib.reload(terrain_layers.masks.mask_types.path)
 
-import masks.mask_types.__init__
+import terrain_layers.masks.mask_types.__init__
 
-importlib.reload(masks.mask_types.__init__)
+importlib.reload(terrain_layers.masks.mask_types.__init__)
 
-import masks.noise
+import terrain_layers.masks.noise
 
-importlib.reload(masks.noise)
+importlib.reload(terrain_layers.masks.noise)
 
-import masks.mask_types.type_helpers
+import terrain_layers.masks.mask_types.type_helpers
 
-importlib.reload(masks.mask_types.type_helpers)
+importlib.reload(terrain_layers.masks.mask_types.type_helpers)
 
-import masks.priority_resolving
+import terrain_layers.masks.priority_resolving
 
-importlib.reload(masks.priority_resolving)
+importlib.reload(terrain_layers.masks.priority_resolving)
 
-import masks.create_layer_masks
+import terrain_layers.masks.create_layer_masks
 
-importlib.reload(masks.create_layer_masks)
+importlib.reload(terrain_layers.masks.create_layer_masks)
 
 
 # ----------------------------
 # Config
 # ----------------------------
-import config.config_types
+import terrain_layers.config.config_types
 
-importlib.reload(config.config_types)
-import config.helpers
+importlib.reload(terrain_layers.config.config_types)
+import terrain_layers.config.helpers
 
-importlib.reload(config.helpers)
+importlib.reload(terrain_layers.config.helpers)
 
 # ----------------------------
 # Preview Shader
 # ----------------------------
-import preview_shader.create_preview_terrain_shader
+import terrain_layers.preview_shader.create_preview_terrain_shader
 
-importlib.reload(preview_shader.create_preview_terrain_shader)
+importlib.reload(terrain_layers.preview_shader.create_preview_terrain_shader)
 
 # ----------------------------
 # Shader
 # ----------------------------
-import shader.material_types
+import terrain_layers.shader.material_types
 
-importlib.reload(shader.material_types)
+importlib.reload(terrain_layers.shader.material_types)
 
-import shader.get_texture_image
+import terrain_layers.shader.get_texture_image
 
-importlib.reload(shader.get_texture_image)
+importlib.reload(terrain_layers.shader.get_texture_image)
 
-import shader.anti_repetition.uv_warp
+import terrain_layers.shader.anti_repetition.uv_warp
 
-importlib.reload(shader.anti_repetition.uv_warp)
-import shader.anti_repetition.anti_tile
+importlib.reload(terrain_layers.shader.anti_repetition.uv_warp)
+import terrain_layers.shader.anti_repetition.anti_tile
 
-importlib.reload(shader.anti_repetition.anti_tile)
+importlib.reload(terrain_layers.shader.anti_repetition.anti_tile)
 
-import shader.anti_repetition.uv_noise
+import terrain_layers.shader.anti_repetition.uv_noise
 
-importlib.reload(shader.anti_repetition.uv_noise)
+importlib.reload(terrain_layers.shader.anti_repetition.uv_noise)
 
-import shader.create_shader
+import terrain_layers.shader.create_shader
 
-importlib.reload(shader.create_shader)
+importlib.reload(terrain_layers.shader.create_shader)
 
-import shader.helpers
+import terrain_layers.shader.helpers
 
-importlib.reload(shader.helpers)
+importlib.reload(terrain_layers.shader.helpers)
 
 # ----------------------------
 # Biomes
 # ----------------------------
-import biomes.create_scatter_biomes
+import terrain_layers.biomes.create_scatter_biomes
 
-importlib.reload(biomes.create_scatter_biomes)
+importlib.reload(terrain_layers.biomes.create_scatter_biomes)
 
 # --------------------------------------------------------------------
 # Run the script
 # --------------------------------------------------------------------
-import pipeline
+import terrain_layers.pipeline
 
-importlib.reload(pipeline)
+importlib.reload(terrain_layers.pipeline)
 
-pipeline.run()
+terrain_layers.pipeline.run()

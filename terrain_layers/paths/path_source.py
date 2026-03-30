@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import bpy
 
-from masks.mask_types.type_helpers import Node
-from utility.geo_nodes import collect_collection_objects
-from utility.object_info_group import add_object_info_nodes
+from terrain_layers.masks.mask_types.type_helpers import Node
+from terrain_layers.utility.geo_nodes import collect_collection_objects
+from terrain_layers.utility.object_info_group import add_object_info_nodes
 
 
 def ensure_curve_object(path_object_name: str) -> bpy.types.Object:

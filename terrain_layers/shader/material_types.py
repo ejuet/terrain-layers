@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import Optional
 import math
-from masks.noise import DualNoiseConfig
+from terrain_layers.masks.noise import DualNoiseConfig
 
 
 @dataclass(frozen=True, slots=True)

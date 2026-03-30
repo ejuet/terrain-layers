@@ -1,8 +1,8 @@
 import bpy
 
-from utility.frame_nodes import frame_nodes
-from utility.geo_nodes import clear_group_interface, remove_node_group
-from utility.rearrange import arrange_nodes
+from terrain_layers.utility.frame_nodes import frame_nodes
+from terrain_layers.utility.geo_nodes import clear_group_interface, remove_node_group
+from terrain_layers.utility.rearrange import arrange_nodes
 
 
 def _set_object_info_as_instance(node: bpy.types.Node) -> None:

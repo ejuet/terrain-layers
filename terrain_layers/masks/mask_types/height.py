@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 from typing import Literal
-from utility.geo_nodes import remove_node_group
+from terrain_layers.utility.geo_nodes import remove_node_group
 import bpy
-from masks.mask_types.type_helpers import MaskSocket, Node
+from terrain_layers.masks.mask_types.type_helpers import MaskSocket, Node
 
 
 @dataclass(frozen=True, slots=True)

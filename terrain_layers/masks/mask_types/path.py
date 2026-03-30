@@ -5,10 +5,10 @@ from typing import Literal
 
 import bpy
 
-from masks.mask_types.type_helpers import MaskSocket, Node
-from paths.path_deformation import DeformationSettings
-from paths.path_source import add_path_source_nodes, path_source_label
-from utility.geo_nodes import group_has_io, remove_node_group
+from terrain_layers.masks.mask_types.type_helpers import MaskSocket, Node
+from terrain_layers.paths.path_deformation import DeformationSettings
+from terrain_layers.paths.path_source import add_path_source_nodes, path_source_label
+from terrain_layers.utility.geo_nodes import group_has_io, remove_node_group
 
 
 @dataclass(frozen=True, slots=True)

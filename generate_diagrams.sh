@@ -33,19 +33,18 @@ resolve_cmd() {
   return 1
 }
 
-PYREVERSE="$(resolve_cmd pyreverse)" || {
-  echo "Missing required command: pyreverse"
-  exit 1
+warn_missing() {
+  local name="$1"
+  echo "Skipping ${name}: command not found."
 }
-PYDEPS="$(resolve_cmd pydeps)" || {
-  echo "Missing required command: pydeps"
-  exit 1
-}
+
 DOT="$(resolve_cmd dot)" || {
   echo "Missing required command: dot"
   echo "Install Graphviz so DOT files can be rendered to SVG."
   exit 1
 }
+PYREVERSE="$(resolve_cmd pyreverse || true)"
+PYDEPS="$(resolve_cmd pydeps || true)"
 
 mkdir -p "${OUTPUT_DIR}" "${TMP_DIR}"
 
@@ -56,32 +55,45 @@ PYREVERSE_TARGETS+=("${PACKAGE_DIR}/pipeline.py")
 
 export PYTHONPATH="${ROOT_DIR}${PYTHONPATH:+:${PYTHONPATH}}"
 
-echo "Generating UML/package diagrams with pyreverse..."
-pushd "${TMP_DIR}" >/dev/null
-"${PYREVERSE}" -o dot -p "${PROJECT_NAME}" "${PYREVERSE_TARGETS[@]}"
-if [[ -f "classes_${PROJECT_NAME}.dot" ]]; then
-  "${DOT}" -Tsvg "classes_${PROJECT_NAME}.dot" -o "${OUTPUT_DIR}/classes_${PROJECT_NAME}.svg"
-fi
-if [[ -f "packages_${PROJECT_NAME}.dot" ]]; then
-  "${DOT}" -Tsvg "packages_${PROJECT_NAME}.dot" -o "${OUTPUT_DIR}/packages_${PROJECT_NAME}.svg"
-fi
-popd >/dev/null
+echo "Generating grouped package dependency diagram..."
+PACKAGE_DOT="${TMP_DIR}/packages_${PROJECT_NAME}.dot"
+python "${ROOT_DIR}/generate_package_diagram.py" "${ROOT_DIR}" "${PROJECT_NAME}" "${PACKAGE_DOT}"
+"${DOT}" -Tsvg "${PACKAGE_DOT}" -o "${OUTPUT_DIR}/packages_${PROJECT_NAME}.svg"
+GENERATED_DIAGRAMS=("${OUTPUT_DIR}/packages_${PROJECT_NAME}.svg")
 
-echo "Generating import dependency graph with pydeps..."
-pushd "${ROOT_DIR}" >/dev/null
-"${PYDEPS}" "${PYDEPS_TARGET}" \
-  --cluster \
-  --max-bacon 2 \
-  --no-show \
-  -T svg \
-  -o "${OUTPUT_DIR}/${PROJECT_NAME}_imports.svg"
-popd >/dev/null
+if [[ -n "${PYREVERSE}" ]]; then
+  echo "Generating class diagram with pyreverse..."
+  pushd "${TMP_DIR}" >/dev/null
+  "${PYREVERSE}" -o dot -p "${PROJECT_NAME}" "${PYREVERSE_TARGETS[@]}"
+  if [[ -f "classes_${PROJECT_NAME}.dot" ]]; then
+    "${DOT}" -Tsvg "classes_${PROJECT_NAME}.dot" -o "${OUTPUT_DIR}/classes_${PROJECT_NAME}.svg"
+    GENERATED_DIAGRAMS+=("${OUTPUT_DIR}/classes_${PROJECT_NAME}.svg")
+  fi
+  popd >/dev/null
+else
+  warn_missing "class diagram (pyreverse)"
+fi
+
+if [[ -n "${PYDEPS}" ]]; then
+  echo "Generating import dependency graph with pydeps..."
+  pushd "${ROOT_DIR}" >/dev/null
+  "${PYDEPS}" "${PYDEPS_TARGET}" \
+    --cluster \
+    --max-bacon 2 \
+    --no-show \
+    -T svg \
+    -o "${OUTPUT_DIR}/${PROJECT_NAME}_imports.svg"
+  GENERATED_DIAGRAMS+=("${OUTPUT_DIR}/${PROJECT_NAME}_imports.svg")
+  popd >/dev/null
+else
+  warn_missing "import dependency graph (pydeps)"
+fi
 
 rm -f "${TMP_DIR}"/*.dot
 rmdir "${TMP_DIR}" 2>/dev/null || true
 
 echo
 echo "Diagrams written to:"
-echo "  ${OUTPUT_DIR}/classes_${PROJECT_NAME}.svg"
-echo "  ${OUTPUT_DIR}/packages_${PROJECT_NAME}.svg"
-echo "  ${OUTPUT_DIR}/${PROJECT_NAME}_imports.svg"
+for diagram in "${GENERATED_DIAGRAMS[@]}"; do
+  echo "  ${diagram}"
+done

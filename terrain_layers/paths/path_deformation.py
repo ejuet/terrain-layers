@@ -1,11 +1,17 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import TYPE_CHECKING
-
 import bpy
 
+from terrain_layers.config.helpers import sort_layers_by_priority
+from terrain_layers.config.config_types import TerrainConfig
+from terrain_layers.masks.mask_types.path import (
+    RoadNetworkMask,
+    _add_path_source_nodes,
+    _merge_path_settings,
+    _path_source_label,
+)
 from terrain_layers.masks.mask_types.type_helpers import Node
+from terrain_layers.paths.path_types import DeformationSettings
 from terrain_layers.utility.frame_nodes import frame_nodes
 from terrain_layers.utility.geo_nodes import (
     ensure_geo_nodes_modifier,
@@ -14,21 +20,6 @@ from terrain_layers.utility.geo_nodes import (
     remove_node_group,
 )
 from terrain_layers.utility.rearrange import arrange_nodes
-
-if TYPE_CHECKING:
-    from config.config_types import TerrainConfig
-    from masks.mask_types.path import RoadNetworkMask
-
-
-@dataclass(frozen=True, slots=True)
-class DeformationSettings:
-    enabled: bool = False
-    width: float | None = None
-    falloff: float | None = None
-    sample_count: int | None = None
-    ray_length: float | None = None
-    strength: float = 1.0
-    vertical_offset: float = 0.0
 
 
 def _effective_value(primary, fallback):
@@ -260,12 +251,6 @@ def add_road_network_path_deformation(
     terrain_socket: bpy.types.NodeSocket,
     group_name: str = "TerrainPathDeformation",
 ) -> tuple[bpy.types.NodeSocket, list[Node]]:
-    from masks.mask_types.path import (
-        _add_path_source_nodes,
-        _merge_path_settings,
-        _path_source_label,
-    )
-
     deformation_group = bpy.data.node_groups.get(group_name)
     if deformation_group is None or not group_has_io(
         deformation_group,
@@ -324,9 +309,6 @@ def add_road_network_path_deformation(
 
 
 def create_path_deformation(config: "TerrainConfig"):
-    from config.helpers import sort_layers_by_priority
-    from masks.mask_types.path import RoadNetworkMask
-
     obj = get_terrain_object(config.object_name)
     mod_name = config.path_deformation_modifier_name
 

@@ -6,8 +6,8 @@ from typing import Literal
 import bpy
 
 from terrain_layers.masks.mask_types.type_helpers import MaskSocket, Node
-from terrain_layers.paths.path_deformation import DeformationSettings
 from terrain_layers.paths.path_source import add_path_source_nodes, path_source_label
+from terrain_layers.paths.path_types import DeformationSettings
 from terrain_layers.utility.geo_nodes import group_has_io, remove_node_group
 
 

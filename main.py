@@ -60,9 +60,6 @@ importlib.reload(terrain_layers.masks.mask_types.slope)
 import terrain_layers.masks.mask_types.paint
 
 importlib.reload(terrain_layers.masks.mask_types.paint)
-import terrain_layers.paths.path_deformation
-
-importlib.reload(terrain_layers.paths.path_deformation)
 
 import terrain_layers.masks.mask_types.path
 
@@ -88,6 +85,20 @@ import terrain_layers.masks.create_layer_masks
 
 importlib.reload(terrain_layers.masks.create_layer_masks)
 
+# ----------------------------
+# Paths
+# ----------------------------
+import terrain_layers.paths.path_deformation
+
+importlib.reload(terrain_layers.paths.path_deformation)
+
+import terrain_layers.paths.path_types
+
+importlib.reload(terrain_layers.paths.path_types)
+
+import terrain_layers.paths.path_source
+
+importlib.reload(terrain_layers.paths.path_source)
 
 # ----------------------------
 # Config

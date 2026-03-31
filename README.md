@@ -6,6 +6,10 @@ A Blender addon to create and manage terrain layers. This python module allows t
 - calculate masks for each layer based on height, slope, paint masks, path masks, and other factors defined in the configuration
 - automatically generate a shader that blends the layers based on their masks
 
+## Blender Version
+
+Tested with Blender `5.1.0`.
+
 ## Example Configuration
 
 An example configuration for terrain layers is shown below. This configuration defines several layers such as "Underwater", "Beach", "Grass", "Snow", "Rock", and "Volcanos", each with its own properties and masks depending on height and slope.

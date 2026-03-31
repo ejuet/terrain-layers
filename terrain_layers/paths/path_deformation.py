@@ -10,6 +10,7 @@ from terrain_layers.masks.mask_types.path import (
     _merge_path_settings,
     _path_source_label,
 )
+from terrain_layers.paths.path_source import add_collection_geometry_source_nodes
 from terrain_layers.utility.type_helpers import Node
 from terrain_layers.paths.path_types import DeformationSettings
 from terrain_layers.utility.frame_nodes import frame_nodes
@@ -69,6 +70,9 @@ def create_path_deformation_group(group_name: str = "TerrainPathDeformation"):
     ng.interface.new_socket(
         name="Path Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
     )
+    ng.interface.new_socket(
+        name="Inactive Areas", in_out="INPUT", socket_type="NodeSocketGeometry"
+    )
     ng.interface.new_socket(name="Width", in_out="INPUT", socket_type="NodeSocketFloat")
     ng.interface.new_socket(
         name="Falloff", in_out="INPUT", socket_type="NodeSocketFloat"
@@ -119,6 +123,24 @@ def create_path_deformation_group(group_name: str = "TerrainPathDeformation"):
     delete_geometry = nodes.new("GeometryNodeDeleteGeometry")
     invert_hit = nodes.new("FunctionNodeBooleanMath")
     invert_hit.operation = "NOT"
+
+    inactive_offset = nodes.new("ShaderNodeCombineXYZ")
+    inactive_offset_add = nodes.new("ShaderNodeVectorMath")
+    inactive_offset_add.operation = "ADD"
+
+    inactive_raycast = nodes.new("GeometryNodeRaycast")
+    try:
+        inactive_raycast.data_type = "FLOAT"
+    except Exception:
+        pass
+    if "Ray Direction" in inactive_raycast.inputs:
+        inactive_raycast.inputs["Ray Direction"].default_value = (0.0, 0.0, -1.0)
+
+    inactive_not_hit = nodes.new("FunctionNodeBooleanMath")
+    inactive_not_hit.operation = "NOT"
+
+    active_strength_mul = nodes.new("ShaderNodeMath")
+    active_strength_mul.operation = "MULTIPLY"
 
     proximity = nodes.new("GeometryNodeProximity")
     try:
@@ -191,6 +213,17 @@ def create_path_deformation_group(group_name: str = "TerrainPathDeformation"):
     if "Ray Length" in raycast.inputs:
         links.new(gin.outputs["Ray Length"], raycast.inputs["Ray Length"])
 
+    links.new(gin.outputs["Ray Length"], inactive_offset.inputs["Z"])
+    links.new(terrain_pos.outputs["Position"], inactive_offset_add.inputs[0])
+    links.new(inactive_offset.outputs["Vector"], inactive_offset_add.inputs[1])
+    links.new(gin.outputs["Inactive Areas"], inactive_raycast.inputs["Target Geometry"])
+    links.new(
+        inactive_offset_add.outputs["Vector"],
+        inactive_raycast.inputs["Source Position"],
+    )
+    if "Ray Length" in inactive_raycast.inputs:
+        links.new(gin.outputs["Ray Length"], inactive_raycast.inputs["Ray Length"])
+
     hit_position = raycast.outputs.get("Hit Position") or raycast.outputs[1]
     is_hit = raycast.outputs.get("Is Hit") or raycast.outputs[0]
     links.new(hit_position, set_path_position.inputs["Position"])
@@ -216,7 +249,12 @@ def create_path_deformation_group(group_name: str = "TerrainPathDeformation"):
     links.new(min1.outputs["Value"], inv.inputs[1])
     links.new(inv.outputs["Value"], max0.inputs[0])
 
-    links.new(max0.outputs["Value"], strength_mul.inputs[0])
+    inactive_hit = inactive_raycast.outputs.get("Is Hit") or inactive_raycast.outputs[0]
+    links.new(inactive_hit, inactive_not_hit.inputs[0])
+    links.new(max0.outputs["Value"], active_strength_mul.inputs[0])
+    links.new(inactive_not_hit.outputs["Boolean"], active_strength_mul.inputs[1])
+
+    links.new(active_strength_mul.outputs["Value"], strength_mul.inputs[0])
     links.new(gin.outputs["Strength"], strength_mul.inputs[1])
     links.new(strength_mul.outputs["Value"], strength_clamp.inputs["Value"])
 
@@ -257,6 +295,7 @@ def add_road_network_path_deformation(
         ins=[
             "Terrain",
             "Path Geometry",
+            "Inactive Areas",
             "Width",
             "Falloff",
             "Sample Count",
@@ -270,6 +309,20 @@ def add_road_network_path_deformation(
 
     created_nodes: list[Node] = []
     current_geometry = terrain_socket
+
+    if mask_def.path_inactive_areas_collection:
+        inactive_geometry, inactive_nodes = add_collection_geometry_source_nodes(
+            nt,
+            collection_name=mask_def.path_inactive_areas_collection,
+            group_namespace="RoadInactiveAreasSource",
+            object_types=("MESH",),
+            label_prefix="Inactive Areas",
+        )
+        created_nodes.extend(inactive_nodes)
+    else:
+        inactive_join = nt.nodes.new("GeometryNodeJoinGeometry")
+        inactive_geometry = inactive_join.outputs["Geometry"]
+        created_nodes.append(inactive_join)
 
     for path_def in mask_def.paths:
         settings = _merge_path_settings(mask_def.path_settings, path_def.path_settings)
@@ -290,6 +343,7 @@ def add_road_network_path_deformation(
 
         nt.links.new(current_geometry, node.inputs["Terrain"])
         nt.links.new(path_geometry, node.inputs["Path Geometry"])
+        nt.links.new(inactive_geometry, node.inputs["Inactive Areas"])
         node.inputs["Width"].default_value = float(
             _effective_value(deformation.width, settings.width)
         )

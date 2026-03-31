@@ -189,6 +189,7 @@ def run():
                             ),
                         ),
                     ],
+                    path_inactive_areas_collection="Path_Inactive_Areas",
                 ),
                 ground_material=GroundMaterial("Sand"),
             ),

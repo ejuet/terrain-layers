@@ -7,7 +7,11 @@ import bpy
 
 from terrain_layers.masks.mask_types.type_helpers import MaskSocket
 from terrain_layers.utility.type_helpers import Node
-from terrain_layers.paths.path_source import add_path_source_nodes, path_source_label
+from terrain_layers.paths.path_source import (
+    add_collection_geometry_source_nodes,
+    add_path_source_nodes,
+    path_source_label,
+)
 from terrain_layers.paths.path_types import DeformationSettings
 from terrain_layers.utility.geo_nodes import (
     clear_group_interface,
@@ -64,6 +68,7 @@ class RoadNetworkMask:
     type: Literal["road_network"] = "road_network"
     paths: list[RoadNetworkPath] = field(default_factory=list)
     path_settings: RoadPathSettings = field(default_factory=RoadPathSettings)
+    path_inactive_areas_collection: str | None = None
 
 
 def _merge_path_settings(
@@ -109,6 +114,8 @@ def _add_path_source_nodes(
 
 def _road_network_mask_group_name(mask_def: RoadNetworkMask) -> str:
     parts: list[str] = []
+    if mask_def.path_inactive_areas_collection:
+        parts.append(f"Inactive_{_safe_key(mask_def.path_inactive_areas_collection)}")
     for path_def in mask_def.paths:
         settings = _merge_path_settings(mask_def.path_settings, path_def.path_settings)
         parts.append(
@@ -147,6 +154,9 @@ def create_road_network_mask_stack_group(
     ng.interface.new_socket(
         name="Position", in_out="INPUT", socket_type="NodeSocketVector"
     )
+    ng.interface.new_socket(
+        name="Inactive Areas", in_out="INPUT", socket_type="NodeSocketGeometry"
+    )
     ng.interface.new_socket(name="Mask", in_out="OUTPUT", socket_type="NodeSocketFloat")
 
     nodes, links = ng.nodes, ng.links
@@ -168,6 +178,7 @@ def create_road_network_mask_stack_group(
 
         links.new(gin.outputs["Terrain"], mask_node.inputs["Terrain"])
         links.new(gin.outputs["Position"], mask_node.inputs["Position"])
+        links.new(gin.outputs["Inactive Areas"], mask_node.inputs["Inactive Areas"])
         links.new(path_geometry, mask_node.inputs["Path Geometry"])
         mask_node.inputs["Width"].default_value = float(settings.width)
         mask_node.inputs["Falloff"].default_value = float(settings.falloff)
@@ -210,6 +221,9 @@ def create_path_mask_group(group_name: str = "TerrainPathMask"):
     )
     ng.interface.new_socket(
         name="Path Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
+    )
+    ng.interface.new_socket(
+        name="Inactive Areas", in_out="INPUT", socket_type="NodeSocketGeometry"
     )
     ng.interface.new_socket(name="Width", in_out="INPUT", socket_type="NodeSocketFloat")
     ng.interface.new_socket(
@@ -259,6 +273,24 @@ def create_path_mask_group(group_name: str = "TerrainPathMask"):
     delete_geometry = nodes.new("GeometryNodeDeleteGeometry")
     invert_hit = nodes.new("FunctionNodeBooleanMath")
     invert_hit.operation = "NOT"
+
+    inactive_offset = nodes.new("ShaderNodeCombineXYZ")
+    inactive_offset_add = nodes.new("ShaderNodeVectorMath")
+    inactive_offset_add.operation = "ADD"
+
+    inactive_raycast = nodes.new("GeometryNodeRaycast")
+    try:
+        inactive_raycast.data_type = "FLOAT"
+    except Exception:
+        pass
+    if "Ray Direction" in inactive_raycast.inputs:
+        inactive_raycast.inputs["Ray Direction"].default_value = (0.0, 0.0, -1.0)
+
+    inactive_not_hit = nodes.new("FunctionNodeBooleanMath")
+    inactive_not_hit.operation = "NOT"
+
+    active_mask_mul = nodes.new("ShaderNodeMath")
+    active_mask_mul.operation = "MULTIPLY"
 
     proximity = nodes.new("GeometryNodeProximity")
     try:
@@ -323,6 +355,14 @@ def create_path_mask_group(group_name: str = "TerrainPathMask"):
     if "Ray Length" in raycast.inputs:
         links.new(gin.outputs["Ray Length"], raycast.inputs["Ray Length"])
 
+    links.new(gin.outputs["Ray Length"], inactive_offset.inputs["Z"])
+    links.new(gin.outputs["Position"], inactive_offset_add.inputs[0])
+    links.new(inactive_offset.outputs["Vector"], inactive_offset_add.inputs[1])
+    links.new(gin.outputs["Inactive Areas"], inactive_raycast.inputs["Target Geometry"])
+    links.new(inactive_offset_add.outputs["Vector"], inactive_raycast.inputs["Source Position"])
+    if "Ray Length" in inactive_raycast.inputs:
+        links.new(gin.outputs["Ray Length"], inactive_raycast.inputs["Ray Length"])
+
     hit_position = raycast.outputs.get("Hit Position") or raycast.outputs[1]
     links.new(hit_position, set_position.inputs["Position"])
     is_hit = raycast.outputs.get("Is Hit") or raycast.outputs[0]
@@ -364,7 +404,12 @@ def create_path_mask_group(group_name: str = "TerrainPathMask"):
     links.new(ramp_div.outputs["Value"], ramp_max0.inputs[0])
     links.new(ramp_max0.outputs["Value"], ramp_min1.inputs[0])
 
-    links.new(ramp_min1.outputs["Value"], gout.inputs["Mask"])
+    inactive_hit = inactive_raycast.outputs.get("Is Hit") or inactive_raycast.outputs[0]
+    links.new(inactive_hit, inactive_not_hit.inputs[0])
+    links.new(ramp_min1.outputs["Value"], active_mask_mul.inputs[0])
+    links.new(inactive_not_hit.outputs["Boolean"], active_mask_mul.inputs[1])
+
+    links.new(active_mask_mul.outputs["Value"], gout.inputs["Mask"])
 
     return ng
 
@@ -383,6 +428,7 @@ def add_road_network_mask_node(
             "Terrain",
             "Position",
             "Path Geometry",
+            "Inactive Areas",
             "Width",
             "Falloff",
             "Sample Count",
@@ -401,6 +447,20 @@ def add_road_network_mask_node(
     pos_node = nt.nodes.new("GeometryNodeInputPosition")
     created_nodes.append(pos_node)
 
+    if mask_def.path_inactive_areas_collection:
+        inactive_geometry, inactive_nodes = add_collection_geometry_source_nodes(
+            nt,
+            collection_name=mask_def.path_inactive_areas_collection,
+            group_namespace="RoadInactiveAreasSource",
+            object_types=("MESH",),
+            label_prefix="Inactive Areas",
+        )
+        created_nodes.extend(inactive_nodes)
+    else:
+        inactive_join = nt.nodes.new("GeometryNodeJoinGeometry")
+        inactive_geometry = inactive_join.outputs["Geometry"]
+        created_nodes.append(inactive_join)
+
     network_node = nt.nodes.new("GeometryNodeGroup")
     network_node.node_tree = create_road_network_mask_stack_group(
         mask_def,
@@ -410,6 +470,7 @@ def add_road_network_mask_node(
 
     nt.links.new(terrain_socket, network_node.inputs["Terrain"])
     nt.links.new(pos_node.outputs["Position"], network_node.inputs["Position"])
+    nt.links.new(inactive_geometry, network_node.inputs["Inactive Areas"])
     created_nodes.append(network_node)
 
     return network_node.outputs["Mask"], created_nodes

@@ -54,6 +54,28 @@ def resolve_path_objects(
     return curve_objects
 
 
+def resolve_collection_geometry_objects(
+    collection_name: str,
+    *,
+    object_types: tuple[str, ...] = ("MESH",),
+) -> list[bpy.types.Object]:
+    collection = bpy.data.collections.get(collection_name)
+    if collection is None:
+        raise RuntimeError(f"Missing collection '{collection_name}'.")
+
+    geometry_objects = [
+        obj
+        for obj in collect_collection_objects(collection)
+        if obj.type in object_types
+    ]
+    if not geometry_objects:
+        type_list = ", ".join(object_types)
+        raise RuntimeError(
+            f"Collection '{collection_name}' does not contain any {type_list} objects."
+        )
+    return geometry_objects
+
+
 def path_source_label(
     *,
     path_object_name: str | None,
@@ -68,7 +90,9 @@ def path_source_label(
 
 def _safe_key(value: str | None) -> str:
     value = (value or "").strip()
-    return "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in value) or "Path"
+    return (
+        "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in value) or "Path"
+    )
 
 
 def _path_source_group_name(
@@ -132,4 +156,43 @@ def add_path_source_nodes(
         path_collection_name=path_collection_name,
     )
     group_node.label = f"Path Source: {label}"
+    return group_node.outputs["Geometry"], [group_node]
+
+
+def add_collection_geometry_source_nodes(
+    nt: bpy.types.NodeTree,
+    *,
+    collection_name: str,
+    group_namespace: str = "CollectionSource",
+    object_types: tuple[str, ...] = ("MESH",),
+    label_prefix: str = "Collection Source",
+) -> tuple[bpy.types.NodeSocket, list[Node]]:
+    objects = resolve_collection_geometry_objects(
+        collection_name,
+        object_types=object_types,
+    )
+    group_node = nt.nodes.new("GeometryNodeGroup")
+    group_name = _path_source_group_name(
+        group_namespace=group_namespace,
+        path_object_name=None,
+        path_collection_name=collection_name,
+    )
+    modifier_name = nt.name
+    group_name += modifier_name
+    """
+    It is always wise to include the modifier name in the group name
+    because if we do not, we can end up reusing the same group for multiple modifiers,
+    which can lead to the created group not being correctly connected to the next nodes
+    of the actual modifier (i think)
+    so #TODO we might want a helper method for creating a node group that handles this
+    """
+    group_node.node_tree = create_object_info_group(
+        group_name=group_name,
+        objects=objects,
+        transform_space="RELATIVE",
+        as_instance=False,
+        output_name="Geometry",
+        frame_label=f"Objects: {collection_name}",
+    )
+    group_node.label = f"{label_prefix}: {collection_name}"
     return group_node.outputs["Geometry"], [group_node]

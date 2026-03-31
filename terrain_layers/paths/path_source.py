@@ -185,6 +185,8 @@ def add_collection_geometry_source_nodes(
     which can lead to the created group not being correctly connected to the next nodes
     of the actual modifier (i think)
     so #TODO we might want a helper method for creating a node group that handles this
+    It is maybe more likely that the create_object_info_group function overwrites the node group.
+    Always recreating the ng in the function also fixes the issue
     """
     group_node.node_tree = create_object_info_group(
         group_name=group_name,

@@ -10,7 +10,6 @@
 ## Future
 
 - [ ] Make scatter biomes have multiple layers depending on objects, e.g. dirt beneath trees and grass everywhere else. Needs restructuring of the pipeline/ config
-- [ ] Add scatter biome settings for rotation, e.g. so that trees are always upright and not along the normal of the terrain
 
 ## Minor
 
@@ -29,3 +28,4 @@
   - Bridges: Created manually, curves should go over the bridge, and then the bridge should be added in the config as well so that we know that we can exclude this area from texturing, scattering and path deformation etc.
   - Tunnels: See if we can write a tunnel modifier that deforms the terrain to create a tunnel between the endpoints of the tunnel/ bezier curve
     - See chat: boolean subtraction. maybe we turn the terrain into a solid chunk, do the tunneling, turn the tunnel into an extra mesh, then turn the terrain back into a heightmap and remove the vertices at the entry of the tunnel
+- [X] Add scatter biome settings for rotation, e.g. so that trees are always upright and not along the normal of the terrain

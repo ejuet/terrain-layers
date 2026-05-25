@@ -25,7 +25,7 @@
 - [X] Flatten/ Smooth terrain on paths
 - [X] Restructure this so it is a proper python module but still works as a blender addon with hot reloading
 - [X] Think about how to handle bridges and tunnels
-  - Bridges: Created manually, curves should go over the bridge, and then the bridge should be added in the config as well so that we know that we can exclude this area from texturing, scattering and path deformation etc.
+  - Bridges: Created manually, curves should go over the bridge, and then the bridge should be added in the config as an inactive area object as well so that we know that we can exclude this area from texturing, scattering and path deformation etc.
   - Tunnels: See if we can write a tunnel modifier that deforms the terrain to create a tunnel between the endpoints of the tunnel/ bezier curve
     - See chat: boolean subtraction. maybe we turn the terrain into a solid chunk, do the tunneling, turn the tunnel into an extra mesh, then turn the terrain back into a heightmap and remove the vertices at the entry of the tunnel
 - [X] Add scatter biome settings for rotation, e.g. so that trees are always upright and not along the normal of the terrain

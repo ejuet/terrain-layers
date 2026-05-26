@@ -92,9 +92,7 @@ def create_tunnel_tube_group(
     ng.interface.new_socket(
         name="Path Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
     )
-    ng.interface.new_socket(
-        name="Width", in_out="INPUT", socket_type="NodeSocketFloat"
-    )
+    ng.interface.new_socket(name="Width", in_out="INPUT", socket_type="NodeSocketFloat")
     ng.interface.new_socket(
         name="Tunnel Mesh", in_out="OUTPUT", socket_type="NodeSocketGeometry"
     )
@@ -128,13 +126,17 @@ def create_tunnel_tube_group(
         terrain_raycast.inputs["Ray Direction"].default_value = (0.0, 0.0, -1.0)
     if "Ray Length" in terrain_raycast.inputs:
         terrain_raycast.inputs["Ray Length"].default_value = 20000.0
-    links.new(gin.outputs["Terrain Geometry"], terrain_raycast.inputs["Target Geometry"])
+    links.new(
+        gin.outputs["Terrain Geometry"], terrain_raycast.inputs["Target Geometry"]
+    )
     links.new(ray_source.outputs["Vector"], terrain_raycast.inputs["Source Position"])
 
     separate_curve = nodes.new("ShaderNodeSeparateXYZ")
     separate_hit = nodes.new("ShaderNodeSeparateXYZ")
     links.new(curve_position.outputs["Position"], separate_curve.inputs["Vector"])
-    hit_position = terrain_raycast.outputs.get("Hit Position") or terrain_raycast.outputs[1]
+    hit_position = (
+        terrain_raycast.outputs.get("Hit Position") or terrain_raycast.outputs[1]
+    )
     links.new(hit_position, separate_hit.inputs["Vector"])
 
     clearance = nodes.new("ShaderNodeMath")
@@ -159,7 +161,9 @@ def create_tunnel_tube_group(
 
     set_curve_position = nodes.new("GeometryNodeSetPosition")
     links.new(tunnel_curve, set_curve_position.inputs["Geometry"])
-    links.new(adjusted_position.outputs["Vector"], set_curve_position.inputs["Position"])
+    links.new(
+        adjusted_position.outputs["Vector"], set_curve_position.inputs["Position"]
+    )
 
     tunnel_mesh, mesh_nodes = _add_curve_to_mesh_nodes(
         ng,
@@ -211,9 +215,7 @@ def create_tunnel_portal_cutter_group(
     ng.interface.new_socket(
         name="Path Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
     )
-    ng.interface.new_socket(
-        name="Width", in_out="INPUT", socket_type="NodeSocketFloat"
-    )
+    ng.interface.new_socket(name="Width", in_out="INPUT", socket_type="NodeSocketFloat")
     ng.interface.new_socket(
         name="Cutter Mesh", in_out="OUTPUT", socket_type="NodeSocketGeometry"
     )
@@ -237,66 +239,5 @@ def create_tunnel_portal_cutter_group(
 
     links.new(cutter_mesh, gout.inputs["Cutter Mesh"])
     frame_nodes(ng, "Tunnel Cutter", [*curve_nodes, *mesh_nodes])
-    arrange_nodes(ng)
-    return ng
-
-
-def create_tunnel_modifier(config: "TerrainConfig"):
-    tunnel = config.tunnel
-    if tunnel is None:
-        return None
-
-    obj = get_terrain_object(config.object_name)
-    ensure_curve_object(tunnel.curve_object_name)
-
-    mod_name = config.tunnel_modifier_name
-    remove_node_group(mod_name)
-    ng = bpy.data.node_groups.new(mod_name, "GeometryNodeTree")
-
-    for it in list(ng.interface.items_tree):
-        ng.interface.remove(it)
-    ng.nodes.clear()
-
-    ng.interface.new_socket(
-        name="Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
-    )
-    ng.interface.new_socket(
-        name="Geometry", in_out="OUTPUT", socket_type="NodeSocketGeometry"
-    )
-
-    nodes, links = ng.nodes, ng.links
-    gin = nodes.new("NodeGroupInput")
-    gout = nodes.new("NodeGroupOutput")
-
-    tube_group = create_tunnel_tube_group()
-    path_geometry, source_nodes = add_path_source_nodes(
-        ng,
-        group_namespace="TunnelSource",
-        path_object_name=tunnel.curve_object_name,
-        path_collection_name=None,
-    )
-
-    width_value = nodes.new("ShaderNodeValue")
-    width_value.label = "Tunnel Width"
-    width_value.outputs[0].default_value = float(tunnel.radius)
-
-    tunnel_mesh = nodes.new("GeometryNodeGroup")
-    tunnel_mesh.node_tree = tube_group
-    tunnel_mesh.label = "Tunnel Tube"
-    links.new(gin.outputs["Geometry"], tunnel_mesh.inputs["Terrain Geometry"])
-    links.new(path_geometry, tunnel_mesh.inputs["Path Geometry"])
-    links.new(width_value.outputs[0], tunnel_mesh.inputs["Width"])
-
-    join = nodes.new("GeometryNodeJoinGeometry")
-    links.new(gin.outputs["Geometry"], join.inputs["Geometry"])
-    links.new(tunnel_mesh.outputs["Tunnel Mesh"], join.inputs["Geometry"])
-    links.new(join.outputs["Geometry"], gout.inputs["Geometry"])
-
-    frame_nodes(ng, "Tunnel Modifier", [*source_nodes, width_value, tunnel_mesh, join])
-
-    mod = ensure_geo_nodes_modifier(obj, mod_name)
-    mod.node_group = ng
-    mod.name = mod_name
-
     arrange_nodes(ng)
     return ng

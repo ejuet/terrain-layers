@@ -50,6 +50,7 @@ class Layer:
 class TerrainConfig:
     object_name: Optional[str] = None
     path_deformation_modifier_name: str = "Terrain_Path_Deformation"
+    tunnel_entrypoint_modifier_name: str = "Terrain_Tunnel_Entrypoints"
     tunnel_modifier_name: str = "Terrain_Tunnels"
     geometry_modifier_name: str = "Terrain_Layer_Masks"
     scatter_modifier_name: str = "Terrain_Scatter_Biomes"

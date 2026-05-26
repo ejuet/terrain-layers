@@ -1,5 +1,9 @@
 # To Do's
 
+To fix weird rotations at the end of the tunnel, go into edit mode of the bezier curve, select the last control point, press `V` and select "Vector". This will make the tangents of the last control point point in the same direction as the line between the last two control points, which should fix the weird rotations at the end of the tunnel.
+
+Make sure the tunnel is inside the terrain, not going outside it.
+
 ## Current
 
 - [ ] Restructure config

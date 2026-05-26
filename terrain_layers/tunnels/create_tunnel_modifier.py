@@ -10,7 +10,6 @@ from terrain_layers.utility.geo_nodes import (
     clear_group_interface,
     ensure_geo_nodes_modifier,
     get_terrain_object,
-    group_has_io,
     remove_node_group,
 )
 from terrain_layers.utility.rearrange import arrange_nodes
@@ -18,94 +17,62 @@ from terrain_layers.utility.rearrange import arrange_nodes
 if TYPE_CHECKING:
     from terrain_layers.config.config_types import TerrainConfig
 
+END_FLARE_ZONE = 0.14
+VISIBLE_END_FLARE = 1.0
+CUTTER_END_FLARE = 1.12
 
-def _add_portal_segment_nodes(
+
+def _add_tunnel_curve_nodes(
     ng: bpy.types.NodeTree,
     *,
     path_socket: bpy.types.NodeSocket,
-    radius_socket: bpy.types.NodeSocket,
-    trim_start: float,
-    trim_end: float,
-    flare_max: float,
-    flare_zone: float,
-    fill_caps: bool,
     label: str,
 ) -> tuple[bpy.types.NodeSocket, list[bpy.types.Node]]:
     nodes, links = ng.nodes, ng.links
-
-    trim = nodes.new("GeometryNodeTrimCurve")
-    trim.label = label
-    try:
-        trim.mode = "FACTOR"
-    except Exception:
-        pass
-    trim.inputs["Start"].default_value = trim_start
-    trim.inputs["End"].default_value = trim_end
-    links.new(path_socket, trim.inputs["Curve"])
 
     resample = nodes.new("GeometryNodeResampleCurve")
     try:
         resample.mode = "COUNT"
     except Exception:
         pass
-    resample.inputs["Count"].default_value = 32
-    links.new(trim.outputs["Curve"], resample.inputs["Curve"])
+    resample.inputs["Count"].default_value = 96
+    resample.label = f"{label}: Resample"
+    links.new(path_socket, resample.inputs["Curve"])
 
-    spline_parameter = nodes.new("GeometryNodeSplineParameter")
+    created_nodes = [resample]
+    return resample.outputs["Curve"], created_nodes
 
-    one_minus_factor = nodes.new("ShaderNodeMath")
-    one_minus_factor.operation = "SUBTRACT"
-    one_minus_factor.inputs[0].default_value = 1.0
-    links.new(spline_parameter.outputs["Factor"], one_minus_factor.inputs[1])
 
-    distance_to_end = nodes.new("ShaderNodeMath")
-    distance_to_end.operation = "MINIMUM"
-    links.new(spline_parameter.outputs["Factor"], distance_to_end.inputs[0])
-    links.new(one_minus_factor.outputs["Value"], distance_to_end.inputs[1])
+def _add_curve_to_mesh_nodes(
+    ng: bpy.types.NodeTree,
+    *,
+    curve_socket: bpy.types.NodeSocket,
+    width_socket: bpy.types.NodeSocket,
+    fill_caps: bool,
+    resolution: int = 20,
+) -> tuple[bpy.types.NodeSocket, list[bpy.types.Node]]:
+    nodes, links = ng.nodes, ng.links
 
-    flare = nodes.new("ShaderNodeMapRange")
-    flare.clamp = True
-    flare.inputs["From Min"].default_value = 0.0
-    flare.inputs["From Max"].default_value = flare_zone
-    flare.inputs["To Min"].default_value = flare_max
-    flare.inputs["To Max"].default_value = 1.0
-    links.new(distance_to_end.outputs["Value"], flare.inputs["Value"])
-
-    scaled_radius = nodes.new("ShaderNodeMath")
-    scaled_radius.operation = "MULTIPLY"
-    links.new(radius_socket, scaled_radius.inputs[0])
-    links.new(flare.outputs["Result"], scaled_radius.inputs[1])
-
-    set_curve_radius = nodes.new("GeometryNodeSetCurveRadius")
-    links.new(resample.outputs["Curve"], set_curve_radius.inputs["Curve"])
-    links.new(scaled_radius.outputs["Value"], set_curve_radius.inputs["Radius"])
+    profile_radius = nodes.new("ShaderNodeMath")
+    profile_radius.operation = "MULTIPLY"
+    profile_radius.inputs[1].default_value = 0.5
+    links.new(width_socket, profile_radius.inputs[0])
 
     curve_circle = nodes.new("GeometryNodeCurvePrimitiveCircle")
     try:
         curve_circle.mode = "RADIUS"
     except Exception:
         pass
-    curve_circle.inputs["Resolution"].default_value = 24
-    curve_circle.inputs["Radius"].default_value = 1.0
+    curve_circle.inputs["Resolution"].default_value = resolution
+    links.new(profile_radius.outputs["Value"], curve_circle.inputs["Radius"])
 
     curve_to_mesh = nodes.new("GeometryNodeCurveToMesh")
     if "Fill Caps" in curve_to_mesh.inputs:
         curve_to_mesh.inputs["Fill Caps"].default_value = fill_caps
-    links.new(set_curve_radius.outputs["Curve"], curve_to_mesh.inputs["Curve"])
+    links.new(curve_socket, curve_to_mesh.inputs["Curve"])
     links.new(curve_circle.outputs["Curve"], curve_to_mesh.inputs["Profile Curve"])
 
-    created_nodes = [
-        trim,
-        resample,
-        spline_parameter,
-        one_minus_factor,
-        distance_to_end,
-        flare,
-        scaled_radius,
-        set_curve_radius,
-        curve_circle,
-        curve_to_mesh,
-    ]
+    created_nodes = [profile_radius, curve_circle, curve_to_mesh]
     return curve_to_mesh.outputs["Mesh"], created_nodes
 
 
@@ -120,10 +87,13 @@ def create_tunnel_tube_group(
     ng.nodes.clear()
 
     ng.interface.new_socket(
+        name="Terrain Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
+    )
+    ng.interface.new_socket(
         name="Path Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
     )
     ng.interface.new_socket(
-        name="Radius", in_out="INPUT", socket_type="NodeSocketFloat"
+        name="Width", in_out="INPUT", socket_type="NodeSocketFloat"
     )
     ng.interface.new_socket(
         name="Tunnel Mesh", in_out="OUTPUT", socket_type="NodeSocketGeometry"
@@ -133,89 +103,97 @@ def create_tunnel_tube_group(
     gin = nodes.new("NodeGroupInput")
     gout = nodes.new("NodeGroupOutput")
 
-    curve_circle = nodes.new("GeometryNodeCurvePrimitiveCircle")
+    tunnel_curve, curve_nodes = _add_tunnel_curve_nodes(
+        ng,
+        path_socket=gin.outputs["Path Geometry"],
+        label="Visible Tunnel",
+    )
+
+    curve_position = nodes.new("GeometryNodeInputPosition")
+
+    ray_offset = nodes.new("ShaderNodeCombineXYZ")
+    ray_offset.inputs["Z"].default_value = 10000.0
+
+    ray_source = nodes.new("ShaderNodeVectorMath")
+    ray_source.operation = "ADD"
+    links.new(curve_position.outputs["Position"], ray_source.inputs[0])
+    links.new(ray_offset.outputs["Vector"], ray_source.inputs[1])
+
+    terrain_raycast = nodes.new("GeometryNodeRaycast")
     try:
-        curve_circle.mode = "RADIUS"
+        terrain_raycast.data_type = "FLOAT"
     except Exception:
         pass
-    curve_circle.inputs["Resolution"].default_value = 20
-    links.new(gin.outputs["Radius"], curve_circle.inputs["Radius"])
+    if "Ray Direction" in terrain_raycast.inputs:
+        terrain_raycast.inputs["Ray Direction"].default_value = (0.0, 0.0, -1.0)
+    if "Ray Length" in terrain_raycast.inputs:
+        terrain_raycast.inputs["Ray Length"].default_value = 20000.0
+    links.new(gin.outputs["Terrain Geometry"], terrain_raycast.inputs["Target Geometry"])
+    links.new(ray_source.outputs["Vector"], terrain_raycast.inputs["Source Position"])
 
-    curve_to_mesh = nodes.new("GeometryNodeCurveToMesh")
-    if "Fill Caps" in curve_to_mesh.inputs:
-        curve_to_mesh.inputs["Fill Caps"].default_value = False
-    links.new(gin.outputs["Path Geometry"], curve_to_mesh.inputs["Curve"])
-    links.new(curve_circle.outputs["Curve"], curve_to_mesh.inputs["Profile Curve"])
+    separate_curve = nodes.new("ShaderNodeSeparateXYZ")
+    separate_hit = nodes.new("ShaderNodeSeparateXYZ")
+    links.new(curve_position.outputs["Position"], separate_curve.inputs["Vector"])
+    hit_position = terrain_raycast.outputs.get("Hit Position") or terrain_raycast.outputs[1]
+    links.new(hit_position, separate_hit.inputs["Vector"])
+
+    clearance = nodes.new("ShaderNodeMath")
+    clearance.operation = "MULTIPLY"
+    clearance.inputs[1].default_value = 0.55
+    links.new(gin.outputs["Width"], clearance.inputs[0])
+
+    target_z = nodes.new("ShaderNodeMath")
+    target_z.operation = "SUBTRACT"
+    links.new(separate_hit.outputs["Z"], target_z.inputs[0])
+    links.new(clearance.outputs["Value"], target_z.inputs[1])
+
+    min_z = nodes.new("ShaderNodeMath")
+    min_z.operation = "MINIMUM"
+    links.new(separate_curve.outputs["Z"], min_z.inputs[0])
+    links.new(target_z.outputs["Value"], min_z.inputs[1])
+
+    adjusted_position = nodes.new("ShaderNodeCombineXYZ")
+    links.new(separate_curve.outputs["X"], adjusted_position.inputs["X"])
+    links.new(separate_curve.outputs["Y"], adjusted_position.inputs["Y"])
+    links.new(min_z.outputs["Value"], adjusted_position.inputs["Z"])
+
+    set_curve_position = nodes.new("GeometryNodeSetPosition")
+    links.new(tunnel_curve, set_curve_position.inputs["Geometry"])
+    links.new(adjusted_position.outputs["Vector"], set_curve_position.inputs["Position"])
+
+    tunnel_mesh, mesh_nodes = _add_curve_to_mesh_nodes(
+        ng,
+        curve_socket=set_curve_position.outputs["Geometry"],
+        width_socket=gin.outputs["Width"],
+        fill_caps=False,
+    )
 
     set_smooth = nodes.new("GeometryNodeSetShadeSmooth")
     if "Shade Smooth" in set_smooth.inputs:
         set_smooth.inputs["Shade Smooth"].default_value = True
-    links.new(curve_to_mesh.outputs["Mesh"], set_smooth.inputs["Geometry"])
+    links.new(tunnel_mesh, set_smooth.inputs["Geometry"])
     links.new(set_smooth.outputs["Geometry"], gout.inputs["Tunnel Mesh"])
 
-    frame_nodes(ng, "Tunnel Tube", [curve_circle, curve_to_mesh, set_smooth])
-    arrange_nodes(ng)
-    return ng
-
-
-def create_tunnel_portal_collar_group(
-    group_name: str = "TerrainTunnelPortalCollar",
-) -> bpy.types.NodeTree:
-    ng = bpy.data.node_groups.get(group_name)
-    if ng is None:
-        ng = bpy.data.node_groups.new(group_name, "GeometryNodeTree")
-
-    clear_group_interface(ng)
-    ng.nodes.clear()
-
-    ng.interface.new_socket(
-        name="Path Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
-    )
-    ng.interface.new_socket(
-        name="Radius", in_out="INPUT", socket_type="NodeSocketFloat"
-    )
-    ng.interface.new_socket(
-        name="Collar Mesh", in_out="OUTPUT", socket_type="NodeSocketGeometry"
-    )
-
-    nodes, links = ng.nodes, ng.links
-    gin = nodes.new("NodeGroupInput")
-    gout = nodes.new("NodeGroupOutput")
-    join = nodes.new("GeometryNodeJoinGeometry")
-
-    start_mesh, start_nodes = _add_portal_segment_nodes(
+    frame_nodes(
         ng,
-        path_socket=gin.outputs["Path Geometry"],
-        radius_socket=gin.outputs["Radius"],
-        trim_start=0.0,
-        trim_end=0.16,
-        flare_max=1.28,
-        flare_zone=0.55,
-        fill_caps=False,
-        label="Start Collar",
+        "Tunnel Tube",
+        [
+            *curve_nodes,
+            curve_position,
+            ray_offset,
+            ray_source,
+            terrain_raycast,
+            separate_curve,
+            separate_hit,
+            clearance,
+            target_z,
+            min_z,
+            adjusted_position,
+            set_curve_position,
+            *mesh_nodes,
+            set_smooth,
+        ],
     )
-    end_mesh, end_nodes = _add_portal_segment_nodes(
-        ng,
-        path_socket=gin.outputs["Path Geometry"],
-        radius_socket=gin.outputs["Radius"],
-        trim_start=0.84,
-        trim_end=1.0,
-        flare_max=1.28,
-        flare_zone=0.55,
-        fill_caps=False,
-        label="End Collar",
-    )
-
-    links.new(start_mesh, join.inputs["Geometry"])
-    links.new(end_mesh, join.inputs["Geometry"])
-
-    set_smooth = nodes.new("GeometryNodeSetShadeSmooth")
-    if "Shade Smooth" in set_smooth.inputs:
-        set_smooth.inputs["Shade Smooth"].default_value = True
-    links.new(join.outputs["Geometry"], set_smooth.inputs["Geometry"])
-    links.new(set_smooth.outputs["Geometry"], gout.inputs["Collar Mesh"])
-
-    frame_nodes(ng, "Portal Collar", [join, *start_nodes, *end_nodes, set_smooth])
     arrange_nodes(ng)
     return ng
 
@@ -234,7 +212,7 @@ def create_tunnel_portal_cutter_group(
         name="Path Geometry", in_out="INPUT", socket_type="NodeSocketGeometry"
     )
     ng.interface.new_socket(
-        name="Radius", in_out="INPUT", socket_type="NodeSocketFloat"
+        name="Width", in_out="INPUT", socket_type="NodeSocketFloat"
     )
     ng.interface.new_socket(
         name="Cutter Mesh", in_out="OUTPUT", socket_type="NodeSocketGeometry"
@@ -243,36 +221,22 @@ def create_tunnel_portal_cutter_group(
     nodes, links = ng.nodes, ng.links
     gin = nodes.new("NodeGroupInput")
     gout = nodes.new("NodeGroupOutput")
-    join = nodes.new("GeometryNodeJoinGeometry")
 
-    start_mesh, start_nodes = _add_portal_segment_nodes(
+    cutter_curve, curve_nodes = _add_tunnel_curve_nodes(
         ng,
         path_socket=gin.outputs["Path Geometry"],
-        radius_socket=gin.outputs["Radius"],
-        trim_start=0.0,
-        trim_end=0.2,
-        flare_max=1.14,
-        flare_zone=0.5,
-        fill_caps=True,
-        label="Start Cutter",
+        label="Tunnel Cutter",
     )
-    end_mesh, end_nodes = _add_portal_segment_nodes(
+    cutter_mesh, mesh_nodes = _add_curve_to_mesh_nodes(
         ng,
-        path_socket=gin.outputs["Path Geometry"],
-        radius_socket=gin.outputs["Radius"],
-        trim_start=0.8,
-        trim_end=1.0,
-        flare_max=1.14,
-        flare_zone=0.5,
+        curve_socket=cutter_curve,
+        width_socket=gin.outputs["Width"],
         fill_caps=True,
-        label="End Cutter",
+        resolution=24,
     )
 
-    links.new(start_mesh, join.inputs["Geometry"])
-    links.new(end_mesh, join.inputs["Geometry"])
-    links.new(join.outputs["Geometry"], gout.inputs["Cutter Mesh"])
-
-    frame_nodes(ng, "Portal Cutter", [join, *start_nodes, *end_nodes])
+    links.new(cutter_mesh, gout.inputs["Cutter Mesh"])
+    frame_nodes(ng, "Tunnel Cutter", [*curve_nodes, *mesh_nodes])
     arrange_nodes(ng)
     return ng
 
@@ -304,21 +268,7 @@ def create_tunnel_modifier(config: "TerrainConfig"):
     gin = nodes.new("NodeGroupInput")
     gout = nodes.new("NodeGroupOutput")
 
-    tube_group = bpy.data.node_groups.get("TerrainTunnelTube")
-    if tube_group is None or not group_has_io(
-        tube_group,
-        ins=["Path Geometry", "Radius"],
-        outs=["Tunnel Mesh"],
-    ):
-        tube_group = create_tunnel_tube_group()
-    collar_group = bpy.data.node_groups.get("TerrainTunnelPortalCollar")
-    if collar_group is None or not group_has_io(
-        collar_group,
-        ins=["Path Geometry", "Radius"],
-        outs=["Collar Mesh"],
-    ):
-        collar_group = create_tunnel_portal_collar_group()
-
+    tube_group = create_tunnel_tube_group()
     path_geometry, source_nodes = add_path_source_nodes(
         ng,
         group_namespace="TunnelSource",
@@ -326,30 +276,23 @@ def create_tunnel_modifier(config: "TerrainConfig"):
         path_collection_name=None,
     )
 
-    radius_value = nodes.new("ShaderNodeValue")
-    radius_value.label = "Tunnel Radius"
-    radius_value.outputs[0].default_value = float(tunnel.radius)
+    width_value = nodes.new("ShaderNodeValue")
+    width_value.label = "Tunnel Width"
+    width_value.outputs[0].default_value = float(tunnel.radius)
 
     tunnel_mesh = nodes.new("GeometryNodeGroup")
     tunnel_mesh.node_tree = tube_group
     tunnel_mesh.label = "Tunnel Tube"
+    links.new(gin.outputs["Geometry"], tunnel_mesh.inputs["Terrain Geometry"])
     links.new(path_geometry, tunnel_mesh.inputs["Path Geometry"])
-    links.new(radius_value.outputs[0], tunnel_mesh.inputs["Radius"])
-
-    collar_mesh = nodes.new("GeometryNodeGroup")
-    collar_mesh.node_tree = collar_group
-    collar_mesh.label = "Tunnel Portal Collar"
-    links.new(path_geometry, collar_mesh.inputs["Path Geometry"])
-    links.new(radius_value.outputs[0], collar_mesh.inputs["Radius"])
+    links.new(width_value.outputs[0], tunnel_mesh.inputs["Width"])
 
     join = nodes.new("GeometryNodeJoinGeometry")
     links.new(gin.outputs["Geometry"], join.inputs["Geometry"])
     links.new(tunnel_mesh.outputs["Tunnel Mesh"], join.inputs["Geometry"])
-    links.new(collar_mesh.outputs["Collar Mesh"], join.inputs["Geometry"])
     links.new(join.outputs["Geometry"], gout.inputs["Geometry"])
 
-    tunnel_nodes = [*source_nodes, radius_value, tunnel_mesh, collar_mesh, join]
-    frame_nodes(ng, "Tunnel MVP", tunnel_nodes)
+    frame_nodes(ng, "Tunnel Modifier", [*source_nodes, width_value, tunnel_mesh, join])
 
     mod = ensure_geo_nodes_modifier(obj, mod_name)
     mod.node_group = ng

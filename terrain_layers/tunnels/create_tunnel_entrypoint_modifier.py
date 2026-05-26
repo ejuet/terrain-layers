@@ -12,7 +12,6 @@ from terrain_layers.utility.frame_nodes import frame_nodes
 from terrain_layers.utility.geo_nodes import (
     ensure_geo_nodes_modifier,
     get_terrain_object,
-    group_has_io,
     remove_node_group,
 )
 from terrain_layers.utility.rearrange import arrange_nodes
@@ -63,13 +62,7 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
     gin = nodes.new("NodeGroupInput")
     gout = nodes.new("NodeGroupOutput")
 
-    cutter_group = bpy.data.node_groups.get("TerrainTunnelPortalCutter")
-    if cutter_group is None or not group_has_io(
-        cutter_group,
-        ins=["Path Geometry", "Radius"],
-        outs=["Cutter Mesh"],
-    ):
-        cutter_group = create_tunnel_portal_cutter_group()
+    cutter_group = create_tunnel_portal_cutter_group()
 
     path_geometry, source_nodes = add_path_source_nodes(
         ng,
@@ -78,20 +71,20 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
         path_collection_name=None,
     )
 
-    radius_value = nodes.new("ShaderNodeValue")
-    radius_value.label = "Tunnel Radius"
-    radius_value.outputs[0].default_value = float(tunnel.radius)
+    width_value = nodes.new("ShaderNodeValue")
+    width_value.label = "Tunnel Width"
+    width_value.outputs[0].default_value = float(tunnel.radius)
 
-    cutter_radius = nodes.new("ShaderNodeMath")
-    cutter_radius.operation = "MULTIPLY"
-    cutter_radius.inputs[1].default_value = 1.02
-    links.new(radius_value.outputs[0], cutter_radius.inputs[0])
+    cutter_width = nodes.new("ShaderNodeMath")
+    cutter_width.operation = "MULTIPLY"
+    cutter_width.inputs[1].default_value = 1.02
+    links.new(width_value.outputs[0], cutter_width.inputs[0])
 
     portal_cutter = nodes.new("GeometryNodeGroup")
     portal_cutter.node_tree = cutter_group
     portal_cutter.label = "Tunnel Portal Cutter"
     links.new(path_geometry, portal_cutter.inputs["Path Geometry"])
-    links.new(cutter_radius.outputs["Value"], portal_cutter.inputs["Radius"])
+    links.new(cutter_width.outputs["Value"], portal_cutter.inputs["Width"])
 
     mesh_boolean = nodes.new("GeometryNodeMeshBoolean")
     try:
@@ -113,8 +106,8 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
 
     entrypoint_nodes = [
         *source_nodes,
-        radius_value,
-        cutter_radius,
+        width_value,
+        cutter_width,
         portal_cutter,
         mesh_boolean,
     ]

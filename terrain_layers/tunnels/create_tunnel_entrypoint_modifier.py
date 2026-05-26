@@ -4,11 +4,15 @@ from typing import TYPE_CHECKING
 
 import bpy
 
+from terrain_layers.tunnels.create_tunnel_modifier import (
+    create_tunnel_portal_cutter_group,
+)
 from terrain_layers.paths.path_source import add_path_source_nodes, ensure_curve_object
 from terrain_layers.utility.frame_nodes import frame_nodes
 from terrain_layers.utility.geo_nodes import (
     ensure_geo_nodes_modifier,
     get_terrain_object,
+    group_has_io,
     remove_node_group,
 )
 from terrain_layers.utility.rearrange import arrange_nodes
@@ -59,6 +63,14 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
     gin = nodes.new("NodeGroupInput")
     gout = nodes.new("NodeGroupOutput")
 
+    cutter_group = bpy.data.node_groups.get("TerrainTunnelPortalCutter")
+    if cutter_group is None or not group_has_io(
+        cutter_group,
+        ins=["Path Geometry", "Radius"],
+        outs=["Cutter Mesh"],
+    ):
+        cutter_group = create_tunnel_portal_cutter_group()
+
     path_geometry, source_nodes = add_path_source_nodes(
         ng,
         group_namespace="TunnelEntrypointSource",
@@ -66,66 +78,45 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
         path_collection_name=None,
     )
 
-    resample = nodes.new("GeometryNodeResampleCurve")
-    try:
-        resample.mode = "COUNT"
-    except Exception:
-        pass
-    resample.inputs["Count"].default_value = 2
-    links.new(path_geometry, resample.inputs["Curve"])
-
-    curve_to_points = nodes.new("GeometryNodeCurveToPoints")
-    try:
-        curve_to_points.mode = "EVALUATED"
-    except Exception:
-        pass
-    links.new(resample.outputs["Curve"], curve_to_points.inputs["Curve"])
-
     radius_value = nodes.new("ShaderNodeValue")
     radius_value.label = "Tunnel Radius"
     radius_value.outputs[0].default_value = float(tunnel.radius)
 
-    portal_radius = nodes.new("ShaderNodeMath")
-    portal_radius.operation = "MULTIPLY"
-    portal_radius.inputs[1].default_value = 1.15
-    links.new(radius_value.outputs[0], portal_radius.inputs[0])
+    cutter_radius = nodes.new("ShaderNodeMath")
+    cutter_radius.operation = "MULTIPLY"
+    cutter_radius.inputs[1].default_value = 1.02
+    links.new(radius_value.outputs[0], cutter_radius.inputs[0])
 
-    proximity = nodes.new("GeometryNodeProximity")
+    portal_cutter = nodes.new("GeometryNodeGroup")
+    portal_cutter.node_tree = cutter_group
+    portal_cutter.label = "Tunnel Portal Cutter"
+    links.new(path_geometry, portal_cutter.inputs["Path Geometry"])
+    links.new(cutter_radius.outputs["Value"], portal_cutter.inputs["Radius"])
+
+    mesh_boolean = nodes.new("GeometryNodeMeshBoolean")
     try:
-        proximity.target_element = "POINTS"
+        mesh_boolean.operation = "DIFFERENCE"
     except Exception:
         pass
-    links.new(curve_to_points.outputs["Points"], proximity.inputs["Target"])
-
-    terrain_position = nodes.new("GeometryNodeInputPosition")
-    links.new(terrain_position.outputs["Position"], proximity.inputs["Source Position"])
-
-    compare = nodes.new("FunctionNodeCompare")
-    compare.data_type = "FLOAT"
-    compare.operation = "LESS_EQUAL"
-    links.new(proximity.outputs["Distance"], compare.inputs[0])
-    links.new(portal_radius.outputs["Value"], compare.inputs[1])
-
-    delete_portal_faces = nodes.new("GeometryNodeDeleteGeometry")
-    if hasattr(delete_portal_faces, "domain"):
+    try:
+        mesh_boolean.solver = "EXACT"
+    except Exception:
+        pass
+    if hasattr(mesh_boolean, "self_intersection"):
         try:
-            delete_portal_faces.domain = "FACE"
+            mesh_boolean.self_intersection = True
         except Exception:
             pass
-    links.new(gin.outputs["Geometry"], delete_portal_faces.inputs["Geometry"])
-    links.new(compare.outputs["Result"], delete_portal_faces.inputs["Selection"])
-    links.new(delete_portal_faces.outputs["Geometry"], gout.inputs["Geometry"])
+    links.new(gin.outputs["Geometry"], mesh_boolean.inputs["Mesh 1"])
+    links.new(portal_cutter.outputs["Cutter Mesh"], mesh_boolean.inputs["Mesh 2"])
+    links.new(mesh_boolean.outputs["Mesh"], gout.inputs["Geometry"])
 
     entrypoint_nodes = [
         *source_nodes,
-        resample,
-        curve_to_points,
         radius_value,
-        portal_radius,
-        terrain_position,
-        proximity,
-        compare,
-        delete_portal_faces,
+        cutter_radius,
+        portal_cutter,
+        mesh_boolean,
     ]
     frame_nodes(ng, "Tunnel Entrypoints MVP", entrypoint_nodes)
 

@@ -32,6 +32,7 @@ from terrain_layers.shader.material_types import (
 from terrain_layers.preview_shader.create_preview_terrain_shader import (
     create_preview_terrain_shader,
 )
+from terrain_layers.tunnels import create_tunnels, Tunnel
 
 
 def run():
@@ -194,9 +195,14 @@ def run():
                 ground_material=GroundMaterial("Sand"),
             ),
         ],
+        tunnel=Tunnel(
+            curve_object_name="Tunnel_Path",
+            radius=2.0,
+        ),
     )
 
     create_path_deformation(config)
+    create_tunnels(config)
     create_terrain_layers(config)
     create_scatter_biomes(config)
     create_terrain_shader(config)

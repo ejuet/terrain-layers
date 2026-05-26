@@ -4,6 +4,7 @@ from typing import Optional
 from terrain_layers.masks.mask_types import Mask
 from terrain_layers.masks.noise import MaskNoiseConfig
 from terrain_layers.shader.material_types import GroundMaterial
+from terrain_layers.tunnels.tunnel_types import Tunnel
 
 
 class PreviewLayerColor(str, Enum):
@@ -49,8 +50,10 @@ class Layer:
 class TerrainConfig:
     object_name: Optional[str] = None
     path_deformation_modifier_name: str = "Terrain_Path_Deformation"
+    tunnel_modifier_name: str = "Terrain_Tunnels"
     geometry_modifier_name: str = "Terrain_Layer_Masks"
     scatter_modifier_name: str = "Terrain_Scatter_Biomes"
     shader_name: str = "Terrain_Layered_Shader"
     preview_shader_name: str = "Terrain_Layer_Preview_Shader"
+    tunnel: Optional[Tunnel] = None
     layers: list[Layer] = field(default_factory=list)

@@ -41,12 +41,16 @@ def _activate_owner_for_node_tree(node_tree: bpy.types.NodeTree):
     view_layer = bpy.context.view_layer
     prev_active = view_layer.objects.active
     prev_selected = {
-        obj.name: bool(obj.select_get()) for obj in view_layer.objects if obj.name in bpy.data.objects
+        obj.name: bool(obj.select_get())
+        for obj in view_layer.objects
+        if obj.name in bpy.data.objects
     }
     prev_active_material_index = getattr(owner_obj, "active_material_index", None)
     prev_active_modifier = None
     if owner_kind == "modifier":
-        prev_active_modifier = getattr(getattr(owner_obj, "modifiers", None), "active", None)
+        prev_active_modifier = getattr(
+            getattr(owner_obj, "modifiers", None), "active", None
+        )
 
     try:
         owner_obj.select_set(True)
@@ -284,6 +288,8 @@ def arrange_nodes(node_tree: bpy.types.NodeTree, *, do_redraw: bool = True):
 
 
 def _arrange_nodes(node_tree: bpy.types.NodeTree, *, do_redraw: bool = True):
+    print("Disabled arranging nodes")
+    return
     if node_tree is None:
         raise ValueError("arrange_nodes_in_shader_editor: node_tree is None")
 

@@ -63,7 +63,10 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
     gin = nodes.new("NodeGroupInput")
     gout = nodes.new("NodeGroupOutput")
 
-    cutter_group = create_tunnel_portal_cutter_group(shape=tunnel.shape)
+    cutter_group = create_tunnel_portal_cutter_group(
+        shape=tunnel.shape,
+        keep_floor_level=tunnel.keep_floor_level,
+    )
 
     path_geometry, source_nodes = add_path_source_nodes(
         ng,

@@ -16,3 +16,6 @@ class Tunnel:
     shape: TunnelShape = TunnelShape.CIRCLE
     width: float = 2.0
     height: float = 2.0
+    # For rectangular tunnels, orient the profile from world Z instead of
+    # following the curve's roll, so its floor stays parallel to the XY plane.
+    keep_floor_level: bool = False

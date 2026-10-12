@@ -195,7 +195,11 @@ def run():
                 ground_material=GroundMaterial("Sand"),
             ),
         ],
-        tunnel=Tunnel(curve_object_name="Tunnel_Path", shape=TunnelShape.RECTANGLE),
+        tunnel=Tunnel(
+            curve_object_name="Tunnel_Path",
+            shape=TunnelShape.RECTANGLE,
+            keep_floor_level=True,
+        ),
     )
 
     create_path_deformation(config)

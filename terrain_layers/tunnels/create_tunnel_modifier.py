@@ -28,6 +28,23 @@ def _add_tunnel_curve_nodes(
     return resample.outputs["Curve"], created_nodes
 
 
+def _add_level_floor_nodes(
+    ng: bpy.types.NodeTree,
+    *,
+    curve_socket: bpy.types.NodeSocket,
+) -> tuple[bpy.types.NodeSocket, list[bpy.types.Node]]:
+    """Orient a swept rectangular profile from world Z rather than curve roll."""
+    nodes, links = ng.nodes, ng.links
+
+    set_normal = nodes.new("GeometryNodeSetCurveNormal")
+    set_normal.label = "Keep Tunnel Floor Level"
+    # Z Up projects world Z onto the plane perpendicular to the path tangent.
+    # Blender handles the unavoidable singularity at vertical path segments.
+    set_normal.inputs["Mode"].default_value = "Z Up"
+    links.new(curve_socket, set_normal.inputs["Curve"])
+    return set_normal.outputs["Curve"], [set_normal]
+
+
 def _add_curve_to_mesh_nodes(
     ng: bpy.types.NodeTree,
     *,
@@ -50,6 +67,7 @@ def create_tunnel_portal_cutter_group(
     group_name: str = "TerrainTunnelPortalCutter",
     *,
     shape: TunnelShape = TunnelShape.CIRCLE,
+    keep_floor_level: bool = False,
 ) -> bpy.types.NodeTree:
     shape = TunnelShape(shape)
     ng = bpy.data.node_groups.get(group_name)
@@ -78,6 +96,12 @@ def create_tunnel_portal_cutter_group(
         path_socket=gin.outputs["Path Geometry"],
         label="Tunnel Cutter",
     )
+    if shape == TunnelShape.RECTANGLE and keep_floor_level:
+        cutter_curve, level_floor_nodes = _add_level_floor_nodes(
+            ng,
+            curve_socket=cutter_curve,
+        )
+        curve_nodes.extend(level_floor_nodes)
     if shape == TunnelShape.CIRCLE:
         profile = nodes.new("GeometryNodeCurvePrimitiveCircle")
         profile.mode = "RADIUS"

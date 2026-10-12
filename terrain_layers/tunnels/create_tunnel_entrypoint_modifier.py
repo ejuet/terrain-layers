@@ -111,13 +111,19 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
             pass
     links.new(gin.outputs["Geometry"], mesh_boolean.inputs["Mesh 1"])
     links.new(portal_cutter.outputs["Cutter Mesh"], mesh_boolean.inputs["Mesh 2"])
-    links.new(mesh_boolean.outputs["Mesh"], gout.inputs["Geometry"])
+
+    # Smooth the boolean cut without changing the terrain mesh topology.
+    shade_smooth = nodes.new("GeometryNodeSetShadeSmooth")
+    shade_smooth.label = "Smooth Tunnel Cut"
+    links.new(mesh_boolean.outputs["Mesh"], shade_smooth.inputs["Mesh"])
+    links.new(shade_smooth.outputs["Mesh"], gout.inputs["Geometry"])
 
     entrypoint_nodes = [
         *source_nodes,
         *dimension_nodes,
         portal_cutter,
         mesh_boolean,
+        shade_smooth,
     ]
     frame_nodes(ng, "Tunnel Entrypoints MVP", entrypoint_nodes)
 

@@ -203,6 +203,7 @@ def run():
         tunnel=Tunnel(
             curve_object_name="Tunnel_Path",
             ground_material=GroundMaterial("Rock"),
+            texture_scale=0.05,
             shape=TunnelShape.RECTANGLE,
             keep_floor_level=True,
             entry_decoration=TunnelEntryDecoration.MINE_SHAFT_ENTRY,

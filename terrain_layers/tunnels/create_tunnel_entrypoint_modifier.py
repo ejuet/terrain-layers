@@ -456,6 +456,7 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
     tunnel_material = create_ground_material_shader(
         tunnel.ground_material,
         f"{config.shader_name}_Tunnel",
+        tunnel.texture_scale,
     )
     material_cutter = nodes.new("GeometryNodeSetMaterial")
     material_cutter.label = f"Tunnel Material: {tunnel.ground_material.material_name}"

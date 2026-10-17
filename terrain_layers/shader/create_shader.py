@@ -91,12 +91,19 @@ def _make_mix_terrain_layer_group(name="NG_MixTerrainLayer"):
 
 
 def _make_pbr_layer_group(
-    layer_key: str, ground_mat: GroundMaterial, group_prefix="NG_PBRLayer_"
+    layer_key: str,
+    ground_mat: GroundMaterial,
+    group_prefix="NG_PBRLayer_",
+    image_projection="FLAT",
+    image_projection_blend=0.0,
 ):
     images = get_material_pbr_images(ground_mat.material_name)
     build_warp = ground_mat.uv_warp is not None
     build_antitile = ground_mat.uv_anti_tiling is not None
-    name = f"{group_prefix}{_safe_key(layer_key)}_warp{build_warp}_antitile{build_antitile}_v01"
+    name = (
+        f"{group_prefix}{_safe_key(layer_key)}_warp{build_warp}"
+        f"_antitile{build_antitile}_projection{image_projection.lower()}_v01"
+    )
 
     ng = bpy.data.node_groups.new(name, "ShaderNodeTree")
     nodes, links = ng.nodes, ng.links
@@ -147,6 +154,9 @@ def _make_pbr_layer_group(
         n.label = label
         n.name = label
         n.interpolation = "Linear"
+        n.projection = image_projection
+        if image_projection == "BOX":
+            n.projection_blend = image_projection_blend
         n.image = img
         if img:
             try:
@@ -233,7 +243,9 @@ def _make_pbr_layer_group(
 
 
 def create_ground_material_shader(
-    ground_material: GroundMaterial, shader_name: str
+    ground_material: GroundMaterial,
+    shader_name: str,
+    texture_scale: float = 0.05,
 ) -> bpy.types.Material:
     """Create a standalone PBR material from a :class:`GroundMaterial`.
 
@@ -255,10 +267,23 @@ def create_ground_material_shader(
     coordinates.label = "Tunnel Texture Coordinates"
     mapping = nodes.new("ShaderNodeMapping")
     mapping.label = "Tunnel Mapping"
-    links.new(coordinates.outputs["Generated"], mapping.inputs["Vector"])
+    # Object coordinates retain a consistent real-world texture size. Generated
+    # coordinates are normalized to the whole terrain bounding box, which
+    # stretches patterns on tall tunnel walls.
+    links.new(coordinates.outputs["Object"], mapping.inputs["Vector"])
+    mapping.inputs["Scale"].default_value = (
+        float(texture_scale),
+        float(texture_scale),
+        float(texture_scale),
+    )
 
     pbr = nodes.new("ShaderNodeGroup")
-    pbr.node_tree = _make_pbr_layer_group("Tunnel", ground_material)
+    pbr.node_tree = _make_pbr_layer_group(
+        "Tunnel",
+        ground_material,
+        image_projection="BOX",
+        image_projection_blend=0.15,
+    )
     pbr.label = f"Tunnel: {ground_material.material_name}"
     links.new(mapping.outputs["Vector"], pbr.inputs["Vector"])
     pbr.inputs["UV Scale"].default_value = float(ground_material.uv_scale)

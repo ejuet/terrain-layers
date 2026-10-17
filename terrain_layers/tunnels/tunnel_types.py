@@ -22,6 +22,9 @@ class Tunnel:
     curve_object_name: str
     # Tunnel walls use their own material instead of the terrain-layer shader.
     ground_material: GroundMaterial
+    # Object-space texture repetitions per Blender unit.  The default matches
+    # the terrain tiling used by the example scene (about one repeat per 20 m).
+    texture_scale: float = 0.05
     radius: float = 1.0
     shape: TunnelShape = TunnelShape.CIRCLE
     width: float = 2.0

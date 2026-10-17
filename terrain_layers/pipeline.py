@@ -202,6 +202,7 @@ def run():
         ],
         tunnel=Tunnel(
             curve_object_name="Tunnel_Path",
+            ground_material=GroundMaterial("Rock"),
             shape=TunnelShape.RECTANGLE,
             keep_floor_level=True,
             entry_decoration=TunnelEntryDecoration.MINE_SHAFT_ENTRY,
@@ -213,4 +214,4 @@ def run():
     create_terrain_layers(config)
     create_scatter_biomes(config)
     create_terrain_shader(config)
-    create_preview_terrain_shader(config)
+    # create_preview_terrain_shader(config)

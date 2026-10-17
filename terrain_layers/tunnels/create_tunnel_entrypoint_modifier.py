@@ -450,6 +450,18 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
         links.new(clearance.outputs["Value"], portal_cutter.inputs[name])
         dimension_nodes.extend((value, clearance))
 
+    # Import lazily to avoid a configuration <-> tunnel module import cycle.
+    from terrain_layers.shader.create_shader import create_ground_material_shader
+
+    tunnel_material = create_ground_material_shader(
+        tunnel.ground_material,
+        f"{config.shader_name}_Tunnel",
+    )
+    material_cutter = nodes.new("GeometryNodeSetMaterial")
+    material_cutter.label = f"Tunnel Material: {tunnel.ground_material.material_name}"
+    material_cutter.inputs["Material"].default_value = tunnel_material
+    links.new(portal_cutter.outputs["Cutter Mesh"], material_cutter.inputs["Geometry"])
+
     mesh_boolean = nodes.new("GeometryNodeMeshBoolean")
     try:
         mesh_boolean.operation = "DIFFERENCE"
@@ -465,7 +477,7 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
         except Exception:
             pass
     links.new(gin.outputs["Geometry"], mesh_boolean.inputs["Mesh 1"])
-    links.new(portal_cutter.outputs["Cutter Mesh"], mesh_boolean.inputs["Mesh 2"])
+    links.new(material_cutter.outputs["Geometry"], mesh_boolean.inputs["Mesh 2"])
 
     # Smooth the boolean cut without changing the terrain mesh topology.
     shade_smooth = nodes.new("GeometryNodeSetShadeSmooth")
@@ -486,6 +498,7 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
         *source_nodes,
         *dimension_nodes,
         portal_cutter,
+        material_cutter,
         mesh_boolean,
         shade_smooth,
     ]

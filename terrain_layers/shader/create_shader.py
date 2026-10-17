@@ -232,6 +232,82 @@ def _make_pbr_layer_group(
     return ng
 
 
+def create_ground_material_shader(
+    ground_material: GroundMaterial, shader_name: str
+) -> bpy.types.Material:
+    """Create a standalone PBR material from a :class:`GroundMaterial`.
+
+    Terrain layers share one shader because their masks blend together.  Tunnel
+    interiors instead need one unmasked material, so they get this separate
+    shader and can be assigned directly by the tunnel boolean.
+    """
+    mat = bpy.data.materials.get(shader_name) or bpy.data.materials.new(shader_name)
+    mat.use_nodes = True
+    nt = mat.node_tree
+    nodes, links = nt.nodes, nt.links
+    nodes.clear()
+
+    output = nodes.new("ShaderNodeOutputMaterial")
+    bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+    links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
+
+    coordinates = nodes.new("ShaderNodeTexCoord")
+    coordinates.label = "Tunnel Texture Coordinates"
+    mapping = nodes.new("ShaderNodeMapping")
+    mapping.label = "Tunnel Mapping"
+    links.new(coordinates.outputs["Generated"], mapping.inputs["Vector"])
+
+    pbr = nodes.new("ShaderNodeGroup")
+    pbr.node_tree = _make_pbr_layer_group("Tunnel", ground_material)
+    pbr.label = f"Tunnel: {ground_material.material_name}"
+    links.new(mapping.outputs["Vector"], pbr.inputs["Vector"])
+    pbr.inputs["UV Scale"].default_value = float(ground_material.uv_scale)
+    pbr.inputs["Normal Strength"].default_value = 1.0
+
+    uv_warp = ground_material.uv_warp
+    if uv_warp is not None:
+        pbr.inputs["UV Warp Amount"].default_value = float(uv_warp.amount)
+        dual_noise = uv_warp.dual_noise
+        noise = get_or_create_shared_dual_noise_node(
+            nt,
+            mapping_node=mapping,
+            scale=float(dual_noise.scale),
+            large_scale=float(dual_noise.large_scale),
+            large_mix=float(dual_noise.large_mix),
+            detail=float(dual_noise.detail),
+        )
+        links.new(noise, pbr.inputs["Warp Noise Centered"])
+    else:
+        pbr.inputs["UV Warp Amount"].default_value = 0.0
+
+    anti_tiling = ground_material.uv_anti_tiling
+    if anti_tiling is not None:
+        pbr.inputs["AntiTile Enable"].default_value = 1.0
+        pbr.inputs["AntiTile Blend"].default_value = float(anti_tiling.blend)
+        pbr.inputs["AntiTile Angle"].default_value = float(anti_tiling.angle)
+        pbr.inputs["AntiTile Offset"].default_value = tuple(anti_tiling.offset)
+        dual_noise = anti_tiling.dual_noise
+        noise = get_or_create_shared_dual_noise_node(
+            nt,
+            mapping_node=mapping,
+            scale=float(dual_noise.scale),
+            large_scale=float(dual_noise.large_scale),
+            large_mix=float(dual_noise.large_mix),
+            detail=float(dual_noise.detail),
+        )
+        links.new(noise, pbr.inputs["AntiTile Noise Centered"])
+    else:
+        pbr.inputs["AntiTile Enable"].default_value = 0.0
+        pbr.inputs["AntiTile Blend"].default_value = 1.0
+        pbr.inputs["AntiTile Angle"].default_value = math.radians(60.0)
+        pbr.inputs["AntiTile Offset"].default_value = (0.37, 0.11, 0.0)
+
+    links.new(pbr.outputs["Base Color"], bsdf.inputs["Base Color"])
+    links.new(pbr.outputs["Roughness"], bsdf.inputs["Roughness"])
+    links.new(pbr.outputs["Normal"], bsdf.inputs["Normal"])
+    return mat
+
+
 def create_terrain_shader(config: TerrainConfig):
     if not config.layers:
         raise ValueError("TerrainConfig.layers must contain at least 1 layer.")

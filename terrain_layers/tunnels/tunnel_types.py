@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from terrain_layers.shader.material_types import GroundMaterial
+
 
 class TunnelShape(str, Enum):
     CIRCLE = "circle"
@@ -18,6 +20,8 @@ class TunnelEntryDecoration(str, Enum):
 @dataclass(frozen=True, slots=True)
 class Tunnel:
     curve_object_name: str
+    # Tunnel walls use their own material instead of the terrain-layer shader.
+    ground_material: GroundMaterial
     radius: float = 1.0
     shape: TunnelShape = TunnelShape.CIRCLE
     width: float = 2.0

@@ -9,7 +9,8 @@ from mathutils.bvhtree import BVHTree
 from terrain_layers.tunnels.create_tunnel_modifier import (
     create_tunnel_portal_cutter_group,
 )
-from terrain_layers.tunnels.tunnel_types import TunnelEntryDecoration, TunnelShape
+from terrain_layers.tunnels.tunnel_types import MineShaftEntry, TunnelShape
+from terrain_layers.shader.material_types import GroundMaterial
 from terrain_layers.paths.path_source import add_path_source_nodes, ensure_curve_object
 from terrain_layers.utility.frame_nodes import frame_nodes
 from terrain_layers.utility.geo_nodes import (
@@ -28,17 +29,32 @@ MINE_SHAFT_ENTRIES_COLLECTION_NAME = "TerrainTunnelMineShaftEntries"
 LEGACY_MINESHAFT_ENTRIES_COLLECTION_NAME = "TerrainTunnelMineshaftEntries"
 
 
-def _get_mineshaft_log_material() -> bpy.types.Material:
-    """Return the deliberately simple brown material used by mineshaft logs."""
+def _get_mineshaft_log_material(
+    ground_material: GroundMaterial | None = None,
+) -> bpy.types.Material:
+    """Return the configured log material or the simple brown fallback."""
+    if ground_material is not None:
+        # Imported lazily to keep tunnel configuration independent from the
+        # shader implementation.
+        from terrain_layers.shader.create_shader import create_ground_material_shader
+
+        return create_ground_material_shader(
+            ground_material,
+            MINE_SHAFT_LOG_MATERIAL_NAME,
+        )
+
     material = bpy.data.materials.get(MINE_SHAFT_LOG_MATERIAL_NAME)
     if material is None:
         material = bpy.data.materials.new(MINE_SHAFT_LOG_MATERIAL_NAME)
     material.diffuse_color = (0.20, 0.105, 0.045, 1.0)
     material.use_nodes = True
-    principled = material.node_tree.nodes.get("Principled BSDF")
-    if principled is not None:
-        principled.inputs["Base Color"].default_value = (0.20, 0.105, 0.045, 1.0)
-        principled.inputs["Roughness"].default_value = 0.8
+    nodes, links = material.node_tree.nodes, material.node_tree.links
+    nodes.clear()
+    output = nodes.new("ShaderNodeOutputMaterial")
+    principled = nodes.new("ShaderNodeBsdfPrincipled")
+    principled.inputs["Base Color"].default_value = (0.20, 0.105, 0.045, 1.0)
+    principled.inputs["Roughness"].default_value = 0.8
+    links.new(principled.outputs["BSDF"], output.inputs["Surface"])
     return material
 
 
@@ -69,12 +85,12 @@ def _add_cube_log(
     material: bpy.types.Material,
 ) -> None:
     mesh = bpy.data.meshes.new(name)
-    half = 0.5
+    half = tuple(dimension / 2 for dimension in dimensions)
     vertices = [
         (x, y, z)
-        for x in (-half, half)
-        for y in (-half, half)
-        for z in (-half, half)
+        for x in (-half[0], half[0])
+        for y in (-half[1], half[1])
+        for z in (-half[2], half[2])
     ]
     faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
     mesh.from_pydata(vertices, [], faces)
@@ -82,8 +98,10 @@ def _add_cube_log(
     log = bpy.data.objects.new(name, mesh)
     collection.objects.link(log)
     orientation = Matrix((right, forward, up)).transposed().to_4x4()
-    scale = Matrix.Diagonal((*dimensions, 1.0))
-    log.matrix_world = Matrix.Translation(center) @ orientation @ scale
+    # Bake dimensions into the mesh instead of object scale. The PBR material
+    # samples Object coordinates, so applied dimensions preserve a consistent
+    # real-world texture scale across the thin and long sides of each beam.
+    log.matrix_world = Matrix.Translation(center) @ orientation
 
 
 def _create_mineshaft_entry_objects(
@@ -91,11 +109,11 @@ def _create_mineshaft_entry_objects(
     curve: bpy.types.Object,
     tunnel_width: float,
     tunnel_height: float,
-    log_thickness: float,
+    entry: MineShaftEntry,
 ) -> None:
     """Create three-log frames at exact curve-segment/terrain intersections."""
     collection = _clear_mineshaft_entries()
-    material = _get_mineshaft_log_material()
+    material = _get_mineshaft_log_material(entry.ground_material)
     depsgraph = bpy.context.evaluated_depsgraph_get()
     terrain_eval = terrain.evaluated_get(depsgraph)
     terrain_mesh = terrain_eval.to_mesh()
@@ -140,9 +158,9 @@ def _create_mineshaft_entry_objects(
     if len(intersections) > 2:
         intersections = [intersections[0], intersections[-1]]
 
-    if log_thickness <= 0:
-        raise ValueError("MineShaft entry_log_thickness must be greater than zero.")
-    thickness = log_thickness
+    if entry.log_thickness <= 0:
+        raise ValueError("MineShaftEntry.log_thickness must be greater than zero.")
+    thickness = entry.log_thickness
     local_up = Vector((0.0, 0.0, 1.0))
     terrain_linear = terrain.matrix_world.to_3x3()
 
@@ -421,10 +439,8 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
         path_collection_name=None,
     )
 
-    if (
-        tunnel.entry_decoration == TunnelEntryDecoration.MINE_SHAFT_ENTRY
-        and tunnel.shape != TunnelShape.RECTANGLE
-    ):
+    entry = tunnel.entry_decoration
+    if isinstance(entry, MineShaftEntry) and tunnel.shape != TunnelShape.RECTANGLE:
         raise ValueError("MineShaftEntry decoration requires a rectangular tunnel.")
 
     portal_cutter = nodes.new("GeometryNodeGroup")
@@ -485,13 +501,13 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
     shade_smooth.label = "Smooth Tunnel Cut"
     links.new(mesh_boolean.outputs["Mesh"], shade_smooth.inputs["Mesh"])
 
-    if tunnel.entry_decoration == TunnelEntryDecoration.MINE_SHAFT_ENTRY:
+    if isinstance(entry, MineShaftEntry):
         _create_mineshaft_entry_objects(
             obj,
             curve,
             tunnel.width,
             tunnel.height,
-            tunnel.entry_log_thickness,
+            entry,
         )
     links.new(shade_smooth.outputs["Mesh"], gout.inputs["Geometry"])
 

@@ -33,8 +33,8 @@ from terrain_layers.preview_shader.create_preview_terrain_shader import (
     create_preview_terrain_shader,
 )
 from terrain_layers.tunnels import (
+    MineShaftEntry,
     Tunnel,
-    TunnelEntryDecoration,
     TunnelShape,
     create_tunnels,
 )
@@ -206,7 +206,9 @@ def run():
             texture_scale=0.05,
             shape=TunnelShape.RECTANGLE,
             keep_floor_level=True,
-            entry_decoration=TunnelEntryDecoration.MINE_SHAFT_ENTRY,
+            entry_decoration=MineShaftEntry(
+                ground_material=GroundMaterial("Sand"),
+            ),
         ),
     )
 

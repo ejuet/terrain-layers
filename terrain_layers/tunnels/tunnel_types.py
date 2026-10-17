@@ -11,10 +11,23 @@ class TunnelShape(str, Enum):
     RECTANGLE = "rectangle"
 
 
-class TunnelEntryDecoration(str, Enum):
-    """Optional structures generated at every tunnel endpoint."""
+class TunnelEntryDecoration:
+    """Base type for an optional structure generated at tunnel endpoints.
 
-    MINE_SHAFT_ENTRY = "MineShaftEntry"
+    Add a new decoration as another subclass.  A tunnel accepts one decoration
+    at a time, which keeps the entrypoint configuration explicit while leaving
+    room for additional decoration types.
+    """
+
+
+@dataclass(frozen=True, slots=True)
+class MineShaftEntry(TunnelEntryDecoration):
+    """A timber frame fitted to each entry of a rectangular tunnel."""
+
+    log_thickness: float = 0.3
+    # When set, the logs use this PBR material instead of the fallback brown
+    # material. For example, this can point at a wood texture set.
+    ground_material: GroundMaterial | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,4 +46,3 @@ class Tunnel:
     # following the curve's roll, so its floor stays parallel to the XY plane.
     keep_floor_level: bool = False
     entry_decoration: TunnelEntryDecoration | None = None
-    entry_log_thickness: float = 0.3

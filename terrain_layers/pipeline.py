@@ -32,7 +32,12 @@ from terrain_layers.shader.material_types import (
 from terrain_layers.preview_shader.create_preview_terrain_shader import (
     create_preview_terrain_shader,
 )
-from terrain_layers.tunnels import create_tunnels, Tunnel, TunnelShape
+from terrain_layers.tunnels import (
+    Tunnel,
+    TunnelEntryDecoration,
+    TunnelShape,
+    create_tunnels,
+)
 
 
 def run():
@@ -199,6 +204,7 @@ def run():
             curve_object_name="Tunnel_Path",
             shape=TunnelShape.RECTANGLE,
             keep_floor_level=True,
+            entry_decoration=TunnelEntryDecoration.MINE_SHAFT_ENTRY,
         ),
     )
 

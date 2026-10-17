@@ -96,12 +96,6 @@ def _create_mineshaft_entry_objects(
     """Create three-log frames at exact curve-segment/terrain intersections."""
     collection = _clear_mineshaft_entries()
     material = _get_mineshaft_log_material()
-    # The cutter resamples the path densely. Match that fidelity here so a
-    # Bézier chord at the terrain crossing cannot rotate the frame away from
-    # the cutter's actual tangent.
-    previous_resolution = curve.data.resolution_u
-    curve.data.resolution_u = max(previous_resolution, 96)
-    bpy.context.view_layer.update()
     depsgraph = bpy.context.evaluated_depsgraph_get()
     terrain_eval = terrain.evaluated_get(depsgraph)
     terrain_mesh = terrain_eval.to_mesh()
@@ -139,7 +133,6 @@ def _create_mineshaft_entry_objects(
     finally:
         terrain_eval.to_mesh_clear()
         curve_eval.to_mesh_clear()
-        curve.data.resolution_u = previous_resolution
 
     # A terrain can contain stacked surfaces, internal faces, or touching
     # triangles along a segment. The exterior tunnel portals are the first

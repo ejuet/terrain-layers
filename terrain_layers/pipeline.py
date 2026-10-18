@@ -203,7 +203,10 @@ def run():
         tunnel=Tunnel(
             curve_object_names=("Tunnel_Path", "Tunnel_Path_2"),
             ground_material=GroundMaterial("Rock"),
-            cave_object_name="Cave",
+            cave_object_names=(
+                "Cave",
+                "Cave_2",
+            ),
             texture_scale=0.05,
             shape=TunnelShape.RECTANGLE,
             keep_floor_level=True,

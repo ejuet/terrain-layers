@@ -37,8 +37,12 @@ class Tunnel:
     curve_object_names: tuple[str, ...]
     # Tunnel walls use their own material instead of the terrain-layer shader.
     ground_material: GroundMaterial
-    # Optional closed mesh volume that is joined to the tunnel excavation.
-    cave_object_name: str | None = None
+    # Optional closed mesh volumes that are joined to the tunnel excavation.
+    cave_object_names: tuple[str, ...] = ()
+    # Merge overlapping cave volumes before cutting them from the terrain,
+    # removing the interior faces between connected caves.
+    # Disabling this can yield better performance, but the mesh will not be the same.
+    fuse_caves: bool = True
     # Object-space texture repetitions per Blender unit.  The default matches
     # the terrain tiling used by the example scene (about one repeat per 20 m).
     texture_scale: float = 0.05

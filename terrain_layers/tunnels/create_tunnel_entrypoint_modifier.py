@@ -423,7 +423,12 @@ def _ensure_cave_object(cave_object_name: str) -> bpy.types.Object:
     return cave
 
 
-def _configure_exact_boolean(node: bpy.types.Node, operation: str) -> None:
+def _configure_exact_boolean(
+    node: bpy.types.Node,
+    operation: str,
+    *,
+    self_intersection: bool = True,
+) -> None:
     try:
         node.operation = operation
     except Exception:
@@ -434,7 +439,7 @@ def _configure_exact_boolean(node: bpy.types.Node, operation: str) -> None:
         pass
     if hasattr(node, "self_intersection"):
         try:
-            node.self_intersection = True
+            node.self_intersection = self_intersection
         except Exception:
             pass
 
@@ -446,12 +451,8 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
 
     obj = get_terrain_object(config.object_name)
     curves = [ensure_curve_object(name) for name in tunnel.curve_object_names]
-    cave = (
-        _ensure_cave_object(tunnel.cave_object_name)
-        if tunnel.cave_object_name is not None
-        else None
-    )
-    if cave is not None:
+    caves = [_ensure_cave_object(name) for name in tunnel.cave_object_names]
+    for cave in caves:
         cave.hide_render = True
         cave.hide_set(True)
 
@@ -538,40 +539,60 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
     smooth_tunnel.inputs["Shade Smooth"].default_value = True
     links.new(material_cutter.outputs["Geometry"], smooth_tunnel.inputs["Mesh"])
 
-    cutter_geometry = smooth_tunnel.outputs["Mesh"]
+    tunnel_boolean = nodes.new("GeometryNodeMeshBoolean")
+    tunnel_boolean.label = "Cut Tunnel"
+    _configure_exact_boolean(tunnel_boolean, "DIFFERENCE")
+    links.new(gin.outputs["Geometry"], tunnel_boolean.inputs["Mesh 1"])
+    links.new(smooth_tunnel.outputs["Mesh"], tunnel_boolean.inputs["Mesh 2"])
+
+    cut_geometry = tunnel_boolean.outputs["Mesh"]
     cave_nodes = []
-    if cave is not None:
+    if caves:
         cave_geometry, cave_source_nodes = add_object_info_nodes(
             ng,
-            objects=[cave],
+            objects=caves,
             transform_space="RELATIVE",
             as_instance=False,
         )
+        fused_cave_geometry = cave_geometry
+        cave_union_nodes = []
+        if tunnel.fuse_caves and len(caves) > 1:
+            cave_union = nodes.new("GeometryNodeMeshBoolean")
+            cave_union.label = "Fuse Overlapping Caves"
+            _configure_exact_boolean(cave_union, "UNION", self_intersection=False)
+            # Feed each cave as its own UNION operand.  Joining them first
+            # leaves their overlapping interior surfaces intact.
+            for source_node in cave_source_nodes:
+                if source_node.bl_idname == "GeometryNodeObjectInfo":
+                    links.new(source_node.outputs["Geometry"], cave_union.inputs[1])
+            fused_cave_geometry = cave_union.outputs["Mesh"]
+            cave_union_nodes.append(cave_union)
+
         cave_material = nodes.new("GeometryNodeSetMaterial")
         cave_material.label = f"Cave Material: {tunnel.ground_material.material_name}"
         cave_material.inputs["Material"].default_value = tunnel_material
-        links.new(cave_geometry, cave_material.inputs["Geometry"])
+        links.new(fused_cave_geometry, cave_material.inputs["Geometry"])
 
         flat_cave = nodes.new("GeometryNodeSetShadeSmooth")
         flat_cave.label = "Keep Cave Faces Flat"
         flat_cave.inputs["Shade Smooth"].default_value = False
         links.new(cave_material.outputs["Geometry"], flat_cave.inputs["Mesh"])
 
-        combined_cutter = nodes.new("GeometryNodeMeshBoolean")
-        combined_cutter.label = "Tunnel and Cave Cutter"
-        _configure_exact_boolean(combined_cutter, "UNION")
-        # UNION consumes its multi-input Mesh socket.  Blender retains a
-        # legacy first socket after switching from DIFFERENCE, but geometry
-        # linked there is ignored by the UNION operation.
-        links.new(cutter_geometry, combined_cutter.inputs[1])
-        links.new(flat_cave.outputs["Mesh"], combined_cutter.inputs[1])
-        cutter_geometry = combined_cutter.outputs["Mesh"]
-        cave_nodes = [*cave_source_nodes, cave_material, flat_cave, combined_cutter]
-
-    mesh_boolean = nodes.new("GeometryNodeMeshBoolean")
-    _configure_exact_boolean(mesh_boolean, "DIFFERENCE")
-    links.new(gin.outputs["Geometry"], mesh_boolean.inputs["Mesh 1"])
-    links.new(cutter_geometry, mesh_boolean.inputs["Mesh 2"])
+        # Sequential subtraction is set-equivalent to subtracting a union of
+        # the tunnel and caves, while remaining reliable when cutters overlap.
+        cave_boolean = nodes.new("GeometryNodeMeshBoolean")
+        cave_boolean.label = "Cut Caves"
+        _configure_exact_boolean(cave_boolean, "DIFFERENCE")
+        links.new(cut_geometry, cave_boolean.inputs["Mesh 1"])
+        links.new(flat_cave.outputs["Mesh"], cave_boolean.inputs["Mesh 2"])
+        cut_geometry = cave_boolean.outputs["Mesh"]
+        cave_nodes = [
+            *cave_source_nodes,
+            *cave_union_nodes,
+            cave_material,
+            flat_cave,
+            cave_boolean,
+        ]
 
     if isinstance(entry, MineShaftEntry):
         entry_collection = _clear_mineshaft_entries()
@@ -584,7 +605,7 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
                 entry,
                 entry_collection,
             )
-    links.new(mesh_boolean.outputs["Mesh"], gout.inputs["Geometry"])
+    links.new(cut_geometry, gout.inputs["Geometry"])
 
     entrypoint_nodes = [
         *source_nodes,
@@ -593,7 +614,7 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
         material_cutter,
         smooth_tunnel,
         *cave_nodes,
-        mesh_boolean,
+        tunnel_boolean,
     ]
     frame_nodes(ng, "Tunnel Entrypoints MVP", entrypoint_nodes)
 

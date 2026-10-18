@@ -4,7 +4,7 @@ from typing import Optional
 from terrain_layers.masks.mask_types import Mask
 from terrain_layers.masks.noise import MaskNoiseConfig
 from terrain_layers.shader.material_types import GroundMaterial
-from terrain_layers.tunnels.tunnel_types import Tunnel
+from terrain_layers.tunnels.tunnel_types import TunnelSystem
 
 
 class PreviewLayerColor(str, Enum):
@@ -55,5 +55,5 @@ class TerrainConfig:
     scatter_modifier_name: str = "Terrain_Scatter_Biomes"
     shader_name: str = "Terrain_Layered_Shader"
     preview_shader_name: str = "Terrain_Layer_Preview_Shader"
-    tunnel: Optional[Tunnel] = None
+    tunnel_system: Optional[TunnelSystem] = None
     layers: list[Layer] = field(default_factory=list)

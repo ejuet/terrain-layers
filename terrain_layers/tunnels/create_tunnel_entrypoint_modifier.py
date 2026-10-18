@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import bpy
@@ -9,7 +10,11 @@ from mathutils.bvhtree import BVHTree
 from terrain_layers.tunnels.create_tunnel_modifier import (
     create_tunnel_portal_cutter_group,
 )
-from terrain_layers.tunnels.tunnel_types import MineShaftEntry, TunnelShape
+from terrain_layers.tunnels.tunnel_types import (
+    MineShaftEntry,
+    TunnelEntryDecoration,
+    TunnelShape,
+)
 from terrain_layers.shader.material_types import GroundMaterial
 from terrain_layers.paths.path_source import ensure_curve_object
 from terrain_layers.utility.object_info_group import add_object_info_nodes
@@ -444,17 +449,155 @@ def _configure_exact_boolean(
             pass
 
 
-def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
-    tunnel = config.tunnel
-    if tunnel is None:
-        return None
+@dataclass(frozen=True, slots=True)
+class _ResolvedPath:
+    config: object
+    object: bpy.types.Object
+    shape: TunnelShape
+    radius: float
+    width: float
+    height: float
+    keep_floor_level: bool
+    ground_material: GroundMaterial
+    texture_scale: float
+    entry_decoration: TunnelEntryDecoration | None
 
+    @property
+    def batch_key(self) -> tuple[object, ...]:
+        return (
+            self.shape,
+            self.radius if self.shape == TunnelShape.CIRCLE else None,
+            self.width if self.shape == TunnelShape.RECTANGLE else None,
+            self.height if self.shape == TunnelShape.RECTANGLE else None,
+            self.keep_floor_level if self.shape == TunnelShape.RECTANGLE else None,
+            self.ground_material,
+            self.texture_scale,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class _ResolvedCave:
+    config: object
+    object: bpy.types.Object
+    ground_material: GroundMaterial
+    texture_scale: float
+    fuse_group: str | None
+
+
+def _resolve_tunnel_system(
+    config: "TerrainConfig",
+) -> tuple[list[_ResolvedPath], list[_ResolvedCave]]:
+    system = config.tunnel_system
+    if system is None:
+        return [], []
+
+    seen_names: set[str] = set()
+
+    def unique(name: str) -> None:
+        if name in seen_names:
+            raise ValueError(f"Tunnel system references object '{name}' more than once.")
+        seen_names.add(name)
+
+    paths: list[_ResolvedPath] = []
+    for path in system.paths:
+        unique(path.curve_object_name)
+        shape = TunnelShape(path.shape if path.shape is not None else system.shape)
+        radius = float(path.radius if path.radius is not None else system.radius)
+        width = float(path.width if path.width is not None else system.width)
+        height = float(path.height if path.height is not None else system.height)
+        if (shape == TunnelShape.CIRCLE and radius <= 0) or (
+            shape == TunnelShape.RECTANGLE and (width <= 0 or height <= 0)
+        ):
+            raise ValueError(
+                f"Tunnel path '{path.curve_object_name}' has non-positive resolved dimensions."
+            )
+        decoration = (
+            system.entry_decoration
+            if path.entry_decoration is None
+            else path.entry_decoration
+        )
+        if decoration is False:
+            decoration = None
+        elif not isinstance(decoration, (TunnelEntryDecoration, type(None))):
+            raise ValueError(
+                f"Tunnel path '{path.curve_object_name}' has an invalid entry decoration."
+            )
+        if isinstance(decoration, MineShaftEntry) and shape != TunnelShape.RECTANGLE:
+            raise ValueError(
+                "MineShaftEntry decoration requires a rectangular tunnel "
+                f"(path '{path.curve_object_name}')."
+            )
+        paths.append(
+            _ResolvedPath(
+                path,
+                ensure_curve_object(path.curve_object_name),
+                shape,
+                radius,
+                width,
+                height,
+                bool(
+                    path.keep_floor_level
+                    if path.keep_floor_level is not None
+                    else system.keep_floor_level
+                ),
+                path.ground_material or system.ground_material,
+                float(
+                    path.texture_scale
+                    if path.texture_scale is not None
+                    else system.texture_scale
+                ),
+                decoration,
+            )
+        )
+
+    caves: list[_ResolvedCave] = []
+    group_settings: dict[str, tuple[GroundMaterial, float]] = {}
+    for cave in system.caves:
+        unique(cave.cave_object_name)
+        if cave.fuse_group is not None and not cave.fuse_group:
+            raise ValueError("Tunnel cave fuse_group must be a non-empty name or None.")
+        resolved = _ResolvedCave(
+            cave,
+            _ensure_cave_object(cave.cave_object_name),
+            cave.ground_material or system.ground_material,
+            float(
+                cave.texture_scale
+                if cave.texture_scale is not None
+                else system.texture_scale
+            ),
+            cave.fuse_group,
+        )
+        if resolved.fuse_group is not None:
+            settings = (resolved.ground_material, resolved.texture_scale)
+            previous = group_settings.setdefault(resolved.fuse_group, settings)
+            if previous != settings:
+                raise ValueError(
+                    f"Tunnel cave fuse group '{resolved.fuse_group}' must resolve to one material and texture scale."
+                )
+        caves.append(resolved)
+    return paths, caves
+
+
+def _path_batches(paths: list[_ResolvedPath]) -> list[list[_ResolvedPath]]:
+    batches: list[list[_ResolvedPath]] = []
+    for path in paths:
+        if batches and batches[-1][0].batch_key == path.batch_key:
+            batches[-1].append(path)
+        else:
+            batches.append([path])
+    return batches
+
+
+def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
+    if config.tunnel_system is None:
+        return None
+    paths, caves = _resolve_tunnel_system(config)
+    if not paths and not caves:
+        return None
     obj = get_terrain_object(config.object_name)
-    curves = [ensure_curve_object(name) for name in tunnel.curve_object_names]
-    caves = [_ensure_cave_object(name) for name in tunnel.cave_object_names]
     for cave in caves:
-        cave.hide_render = True
-        cave.hide_set(True)
+        cave.object.hide_render = True
+        cave.object.hide_set(True)
 
     mod_name = config.tunnel_entrypoint_modifier_name
     previous_modifier = obj.modifiers.get(mod_name)
@@ -479,149 +622,109 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
     gin = nodes.new("NodeGroupInput")
     gout = nodes.new("NodeGroupOutput")
 
-    cutter_group = create_tunnel_portal_cutter_group(
-        shape=tunnel.shape,
-        keep_floor_level=tunnel.keep_floor_level,
-    )
-
-    path_geometry, source_nodes = add_object_info_nodes(
-        ng,
-        objects=curves,
-        transform_space="RELATIVE",
-        as_instance=False,
-        frame_label="Tunnel Paths",
-    )
-
-    entry = tunnel.entry_decoration
-    if isinstance(entry, MineShaftEntry) and tunnel.shape != TunnelShape.RECTANGLE:
-        raise ValueError("MineShaftEntry decoration requires a rectangular tunnel.")
-
-    portal_cutter = nodes.new("GeometryNodeGroup")
-    portal_cutter.node_tree = cutter_group
-    portal_cutter.label = "Tunnel Portal Cutter"
-    links.new(path_geometry, portal_cutter.inputs["Path Geometry"])
-
-    dimensions = (
-        {"Radius": tunnel.radius}
-        if tunnel.shape == TunnelShape.CIRCLE
-        else {"Width": tunnel.width, "Height": tunnel.height}
-    )
-    dimension_nodes = []
-    for name, size in dimensions.items():
-        value = nodes.new("ShaderNodeValue")
-        value.label = f"Tunnel {name}"
-        value.outputs[0].default_value = float(size)
-
-        clearance = nodes.new("ShaderNodeMath")
-        clearance.operation = "MULTIPLY"
-        clearance.inputs[1].default_value = 1.02
-        links.new(value.outputs[0], clearance.inputs[0])
-        links.new(clearance.outputs["Value"], portal_cutter.inputs[name])
-        dimension_nodes.extend((value, clearance))
-
     # Import lazily to avoid a configuration <-> tunnel module import cycle.
     from terrain_layers.shader.create_shader import create_ground_material_shader
-
-    tunnel_material = create_ground_material_shader(
-        tunnel.ground_material,
-        f"{config.shader_name}_Tunnel",
-        tunnel.texture_scale,
-    )
-    material_cutter = nodes.new("GeometryNodeSetMaterial")
-    material_cutter.label = f"Tunnel Material: {tunnel.ground_material.material_name}"
-    material_cutter.inputs["Material"].default_value = tunnel_material
-    links.new(portal_cutter.outputs["Cutter Mesh"], material_cutter.inputs["Geometry"])
-
-    # Preserve smooth normals on the swept tunnel while leaving cave faces
-    # sharp. Box-projected textures use these normals to choose projections.
-    smooth_tunnel = nodes.new("GeometryNodeSetShadeSmooth")
-    smooth_tunnel.label = "Smooth Tunnel Cut"
-    smooth_tunnel.inputs["Shade Smooth"].default_value = True
-    links.new(material_cutter.outputs["Geometry"], smooth_tunnel.inputs["Mesh"])
-
-    tunnel_boolean = nodes.new("GeometryNodeMeshBoolean")
-    tunnel_boolean.label = "Cut Tunnel"
-    _configure_exact_boolean(tunnel_boolean, "DIFFERENCE")
-    links.new(gin.outputs["Geometry"], tunnel_boolean.inputs["Mesh 1"])
-    links.new(smooth_tunnel.outputs["Mesh"], tunnel_boolean.inputs["Mesh 2"])
-
-    cut_geometry = tunnel_boolean.outputs["Mesh"]
-    cave_nodes = []
-    if caves:
-        cave_geometry, cave_source_nodes = add_object_info_nodes(
-            ng,
-            objects=caves,
-            transform_space="RELATIVE",
-            as_instance=False,
-            # A fused multi-cave cut feeds every source directly to the
-            # Boolean UNION, so creating a Join Geometry here would be dead
-            # graph state.
-            join_multiple=not (tunnel.fuse_caves and len(caves) > 1),
-        )
-        if cave_geometry is None and not (tunnel.fuse_caves and len(caves) > 1):
-            raise RuntimeError("Expected joined cave geometry.")
-        fused_cave_geometry = cave_geometry
-        cave_union_nodes = []
-        if tunnel.fuse_caves and len(caves) > 1:
-            cave_union = nodes.new("GeometryNodeMeshBoolean")
-            cave_union.label = "Fuse Overlapping Caves"
-            _configure_exact_boolean(cave_union, "UNION", self_intersection=False)
-            # Feed each cave as its own UNION operand.  Joining them first
-            # leaves their overlapping interior surfaces intact.
-            for source_node in cave_source_nodes:
-                if source_node.bl_idname == "GeometryNodeObjectInfo":
-                    links.new(source_node.outputs["Geometry"], cave_union.inputs[1])
-            fused_cave_geometry = cave_union.outputs["Mesh"]
-            cave_union_nodes.append(cave_union)
-
-        cave_material = nodes.new("GeometryNodeSetMaterial")
-        cave_material.label = f"Cave Material: {tunnel.ground_material.material_name}"
-        cave_material.inputs["Material"].default_value = tunnel_material
-        links.new(fused_cave_geometry, cave_material.inputs["Geometry"])
-
-        flat_cave = nodes.new("GeometryNodeSetShadeSmooth")
-        flat_cave.label = "Keep Cave Faces Flat"
-        flat_cave.inputs["Shade Smooth"].default_value = False
-        links.new(cave_material.outputs["Geometry"], flat_cave.inputs["Mesh"])
-
-        # Sequential subtraction is set-equivalent to subtracting a union of
-        # the tunnel and caves, while remaining reliable when cutters overlap.
-        cave_boolean = nodes.new("GeometryNodeMeshBoolean")
-        cave_boolean.label = "Cut Caves"
-        _configure_exact_boolean(cave_boolean, "DIFFERENCE")
-        links.new(cut_geometry, cave_boolean.inputs["Mesh 1"])
-        links.new(flat_cave.outputs["Mesh"], cave_boolean.inputs["Mesh 2"])
-        cut_geometry = cave_boolean.outputs["Mesh"]
-        cave_nodes = [
-            *cave_source_nodes,
-            *cave_union_nodes,
-            cave_material,
-            flat_cave,
-            cave_boolean,
-        ]
-
-    if isinstance(entry, MineShaftEntry):
-        entry_collection = _clear_mineshaft_entries()
-        for curve in curves:
-            _create_mineshaft_entry_objects(
-                obj,
-                curve,
-                tunnel.width,
-                tunnel.height,
-                entry,
-                entry_collection,
+    material_cache: dict[tuple[GroundMaterial, float], bpy.types.Material] = {}
+    def material_for(material: GroundMaterial, texture_scale: float) -> bpy.types.Material:
+        key = (material, texture_scale)
+        if key not in material_cache:
+            material_cache[key] = create_ground_material_shader(
+                material, f"{config.shader_name}_Tunnel_{len(material_cache) + 1}", texture_scale
             )
-    links.new(cut_geometry, gout.inputs["Geometry"])
+        return material_cache[key]
 
-    entrypoint_nodes = [
-        *dimension_nodes,
-        portal_cutter,
-        material_cutter,
-        smooth_tunnel,
-        *cave_nodes,
-        tunnel_boolean,
-    ]
-    frame_nodes(ng, "Tunnel Entrypoints MVP", entrypoint_nodes)
+    child_frames: list[bpy.types.Node] = []
+    cut_geometry = gin.outputs["Geometry"]
+    for batch in _path_batches(paths):
+        first = batch[0]
+        path_geometry, source_nodes = add_object_info_nodes(
+            ng, objects=[path.object for path in batch], transform_space="RELATIVE", as_instance=False
+        )
+        cutter_group = create_tunnel_portal_cutter_group(
+            group_name=f"TerrainTunnelPortalCutter_{len(child_frames) + 1}",
+            shape=first.shape, keep_floor_level=first.keep_floor_level,
+        )
+        portal_cutter = nodes.new("GeometryNodeGroup")
+        portal_cutter.node_tree = cutter_group
+        portal_cutter.label = "Tunnel Portal Cutter"
+        links.new(path_geometry, portal_cutter.inputs["Path Geometry"])
+        dimensions = {"Radius": first.radius} if first.shape == TunnelShape.CIRCLE else {"Width": first.width, "Height": first.height}
+        batch_nodes = [*source_nodes]
+        for name, size in dimensions.items():
+            value, clearance = nodes.new("ShaderNodeValue"), nodes.new("ShaderNodeMath")
+            value.label, value.outputs[0].default_value = f"Tunnel {name}", size
+            clearance.operation, clearance.inputs[1].default_value = "MULTIPLY", 1.02
+            links.new(value.outputs[0], clearance.inputs[0])
+            links.new(clearance.outputs["Value"], portal_cutter.inputs[name])
+            batch_nodes.extend((value, clearance))
+        material_cutter = nodes.new("GeometryNodeSetMaterial")
+        material_cutter.label = f"Tunnel Material: {first.ground_material.material_name}"
+        material_cutter.inputs["Material"].default_value = material_for(first.ground_material, first.texture_scale)
+        links.new(portal_cutter.outputs["Cutter Mesh"], material_cutter.inputs["Geometry"])
+        smooth = nodes.new("GeometryNodeSetShadeSmooth")
+        smooth.label, smooth.inputs["Shade Smooth"].default_value = "Smooth Tunnel Cut", True
+        links.new(material_cutter.outputs["Geometry"], smooth.inputs["Mesh"])
+        boolean = nodes.new("GeometryNodeMeshBoolean")
+        boolean.label = "Cut Tunnel"
+        _configure_exact_boolean(boolean, "DIFFERENCE")
+        links.new(cut_geometry, boolean.inputs["Mesh 1"])
+        links.new(smooth.outputs["Mesh"], boolean.inputs["Mesh 2"])
+        cut_geometry = boolean.outputs["Mesh"]
+        names = " + ".join(path.object.name for path in batch)
+        frame = frame_nodes(ng, ("Path: " if len(batch) == 1 else "Paths: ") + names, [*batch_nodes, portal_cutter, material_cutter, smooth, boolean])
+        if frame:
+            child_frames.append(frame)
+
+    # A named group is cut at its first declaration, preserving the declared
+    # order relative to independent caves without duplicating group work.
+    cave_units: list[tuple[str | None, list[_ResolvedCave]]] = []
+    grouped: set[str] = set()
+    for cave in caves:
+        if cave.fuse_group is None:
+            cave_units.append((None, [cave]))
+        elif cave.fuse_group not in grouped:
+            grouped.add(cave.fuse_group)
+            cave_units.append((cave.fuse_group, [item for item in caves if item.fuse_group == cave.fuse_group]))
+    for group_name, unit in cave_units:
+        geometry, source_nodes = add_object_info_nodes(
+            ng, objects=[cave.object for cave in unit], transform_space="RELATIVE", as_instance=False,
+            join_multiple=not (group_name is not None and len(unit) > 1),
+        )
+        unit_nodes = [*source_nodes]
+        if group_name is not None and len(unit) > 1:
+            union = nodes.new("GeometryNodeMeshBoolean")
+            union.label = "Fuse Overlapping Caves"
+            _configure_exact_boolean(union, "UNION", self_intersection=False)
+            for source in source_nodes:
+                if source.bl_idname == "GeometryNodeObjectInfo":
+                    links.new(source.outputs["Geometry"], union.inputs[1])
+            geometry = union.outputs["Mesh"]
+            unit_nodes.append(union)
+        material = nodes.new("GeometryNodeSetMaterial")
+        material.label = f"Cave Material: {unit[0].ground_material.material_name}"
+        material.inputs["Material"].default_value = material_for(unit[0].ground_material, unit[0].texture_scale)
+        links.new(geometry, material.inputs["Geometry"])
+        flat = nodes.new("GeometryNodeSetShadeSmooth")
+        flat.label, flat.inputs["Shade Smooth"].default_value = "Keep Cave Faces Flat", False
+        links.new(material.outputs["Geometry"], flat.inputs["Mesh"])
+        boolean = nodes.new("GeometryNodeMeshBoolean")
+        boolean.label = "Cut Caves"
+        _configure_exact_boolean(boolean, "DIFFERENCE")
+        links.new(cut_geometry, boolean.inputs["Mesh 1"])
+        links.new(flat.outputs["Mesh"], boolean.inputs["Mesh 2"])
+        cut_geometry = boolean.outputs["Mesh"]
+        label = f"Caves: {group_name}" if group_name is not None else f"Cave: {unit[0].object.name}"
+        frame = frame_nodes(ng, label, [*unit_nodes, material, flat, boolean])
+        if frame:
+            child_frames.append(frame)
+
+    if any(isinstance(path.entry_decoration, MineShaftEntry) for path in paths):
+        entry_collection = _clear_mineshaft_entries()
+        for path in paths:
+            if isinstance(path.entry_decoration, MineShaftEntry):
+                _create_mineshaft_entry_objects(obj, path.object, path.width, path.height, path.entry_decoration, entry_collection)
+    links.new(cut_geometry, gout.inputs["Geometry"])
+    frame_nodes(ng, "Tunnel Entrypoints MVP", child_frames)
 
     mod = ensure_geo_nodes_modifier(obj, mod_name)
     mod.node_group = ng

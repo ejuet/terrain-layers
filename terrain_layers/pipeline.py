@@ -34,8 +34,10 @@ from terrain_layers.preview_shader.create_preview_terrain_shader import (
 )
 from terrain_layers.tunnels import (
     MineShaftEntry,
-    Tunnel,
+    TunnelCave,
+    TunnelPath,
     TunnelShape,
+    TunnelSystem,
     create_tunnels,
 )
 
@@ -200,12 +202,21 @@ def run():
                 ground_material=GroundMaterial("Sand"),
             ),
         ],
-        tunnel=Tunnel(
-            curve_object_names=("Tunnel_Path", "Tunnel_Path_2"),
+        tunnel_system=TunnelSystem(
+            paths=(
+                TunnelPath(curve_object_name="Tunnel_Path"),
+                TunnelPath(curve_object_name="Tunnel_Path_2"),
+                TunnelPath(
+                    curve_object_name="Tunnel_Path_3",
+                    shape=TunnelShape.CIRCLE,
+                    entry_decoration=False,
+                ),
+            ),
             ground_material=GroundMaterial("Rock"),
-            cave_object_names=(
-                "Cave",
-                "Cave_2",
+            caves=(
+                TunnelCave(cave_object_name="Cave", fuse_group="Main Cave"),
+                TunnelCave(cave_object_name="Cave_2", fuse_group="Main Cave"),
+                TunnelCave(cave_object_name="Cave_3"),
             ),
             texture_scale=0.05,
             shape=TunnelShape.RECTANGLE,

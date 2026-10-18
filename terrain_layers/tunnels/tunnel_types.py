@@ -31,20 +31,43 @@ class MineShaftEntry(TunnelEntryDecoration):
 
 
 @dataclass(frozen=True, slots=True)
-class Tunnel:
-    # All curve objects swept to form the tunnel.  They are combined into one
-    # cutter, so paths may intersect each other and the optional cave volume.
-    curve_object_names: tuple[str, ...]
-    # Tunnel walls use their own material instead of the terrain-layer shader.
+class TunnelPath:
+    """One curve excavated by a :class:`TunnelSystem`.
+
+    ``None`` means inherit the corresponding system setting.  ``False`` for
+    ``entry_decoration`` is deliberately distinct from ``None``: it suppresses
+    a decoration inherited from the system.
+    """
+
+    curve_object_name: str
+    ground_material: GroundMaterial | None = None
+    texture_scale: float | None = None
+    radius: float | None = None
+    shape: TunnelShape | None = None
+    width: float | None = None
+    height: float | None = None
+    keep_floor_level: bool | None = None
+    entry_decoration: TunnelEntryDecoration | None | bool = None
+
+
+@dataclass(frozen=True, slots=True)
+class TunnelCave:
+    """One mesh volume excavated by a :class:`TunnelSystem`."""
+
+    cave_object_name: str
+    ground_material: GroundMaterial | None = None
+    texture_scale: float | None = None
+    fuse_group: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class TunnelSystem:
+    """Tunnel defaults plus independently configurable path and cave cuts."""
+
+    paths: tuple[TunnelPath, ...]
     ground_material: GroundMaterial
-    # Optional closed mesh volumes that are joined to the tunnel excavation.
-    cave_object_names: tuple[str, ...] = ()
-    # Merge overlapping cave volumes before cutting them from the terrain,
-    # removing the interior faces between connected caves.
-    # Disabling this can yield better performance, but the mesh will not be the same.
-    fuse_caves: bool = True
-    # Object-space texture repetitions per Blender unit.  The default matches
-    # the terrain tiling used by the example scene (about one repeat per 20 m).
+    caves: tuple[TunnelCave, ...] = ()
+    # Object-space texture repetitions per Blender unit.
     texture_scale: float = 0.05
     radius: float = 1.0
     shape: TunnelShape = TunnelShape.CIRCLE

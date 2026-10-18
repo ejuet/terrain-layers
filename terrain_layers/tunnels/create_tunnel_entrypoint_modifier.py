@@ -127,6 +127,10 @@ def _create_mineshaft_entry_objects(
             all_triangles=False,
         )
         terrain_from_curve = terrain.matrix_world.inverted() @ curve.matrix_world
+        vertex_degrees: dict[int, int] = {}
+        for edge in curve_mesh.edges:
+            for vertex_index in edge.vertices:
+                vertex_degrees[vertex_index] = vertex_degrees.get(vertex_index, 0) + 1
         intersections: list[tuple[Vector, Vector]] = []
         for edge in curve_mesh.edges:
             start = terrain_from_curve @ curve_mesh.vertices[edge.vertices[0]].co
@@ -146,6 +150,17 @@ def _create_mineshaft_entry_objects(
                 if hit[0] is None:
                     break
                 location = hit[0]
+                remaining_distance = length - travelled
+                # A curve can finish while still underground, with its final
+                # point touching the terrain mesh. That is not a tunnel
+                # portal: there is no path outside the terrain beyond it.
+                # Keep crossings at internal tessellation vertices, but ignore
+                # a hit at the actual end of the path.
+                if (
+                    hit[3] >= remaining_distance - 1e-4
+                    and vertex_degrees[edge.vertices[1]] == 1
+                ):
+                    break
                 if not any((location - previous[0]).length < 1e-3 for previous in intersections):
                     intersections.append((location, direction))
                 travelled += hit[3] + 1e-4

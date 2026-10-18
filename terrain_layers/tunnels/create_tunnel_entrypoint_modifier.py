@@ -12,6 +12,7 @@ from terrain_layers.tunnels.create_tunnel_modifier import (
 from terrain_layers.tunnels.tunnel_types import MineShaftEntry, TunnelShape
 from terrain_layers.shader.material_types import GroundMaterial
 from terrain_layers.paths.path_source import add_path_source_nodes, ensure_curve_object
+from terrain_layers.utility.object_info_group import add_object_info_nodes
 from terrain_layers.utility.frame_nodes import frame_nodes
 from terrain_layers.utility.geo_nodes import (
     ensure_geo_nodes_modifier,
@@ -396,6 +397,33 @@ def _move_modifier_before(
         pass
 
 
+def _ensure_cave_object(cave_object_name: str) -> bpy.types.Object:
+    cave = bpy.data.objects.get(cave_object_name)
+    if cave is None:
+        raise RuntimeError(f"Tunnel references missing cave object '{cave_object_name}'.")
+    if cave.type != "MESH":
+        raise RuntimeError(
+            f"Tunnel cave object '{cave_object_name}' must be MESH, got: {cave.type}"
+        )
+    return cave
+
+
+def _configure_exact_boolean(node: bpy.types.Node, operation: str) -> None:
+    try:
+        node.operation = operation
+    except Exception:
+        pass
+    try:
+        node.solver = "EXACT"
+    except Exception:
+        pass
+    if hasattr(node, "self_intersection"):
+        try:
+            node.self_intersection = True
+        except Exception:
+            pass
+
+
 def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
     tunnel = config.tunnel
     if tunnel is None:
@@ -403,6 +431,14 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
 
     obj = get_terrain_object(config.object_name)
     curve = ensure_curve_object(tunnel.curve_object_name)
+    cave = (
+        _ensure_cave_object(tunnel.cave_object_name)
+        if tunnel.cave_object_name is not None
+        else None
+    )
+    if cave is not None:
+        cave.hide_render = True
+        cave.hide_set(True)
 
     mod_name = config.tunnel_entrypoint_modifier_name
     previous_modifier = obj.modifiers.get(mod_name)
@@ -479,27 +515,47 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
     material_cutter.inputs["Material"].default_value = tunnel_material
     links.new(portal_cutter.outputs["Cutter Mesh"], material_cutter.inputs["Geometry"])
 
-    mesh_boolean = nodes.new("GeometryNodeMeshBoolean")
-    try:
-        mesh_boolean.operation = "DIFFERENCE"
-    except Exception:
-        pass
-    try:
-        mesh_boolean.solver = "EXACT"
-    except Exception:
-        pass
-    if hasattr(mesh_boolean, "self_intersection"):
-        try:
-            mesh_boolean.self_intersection = True
-        except Exception:
-            pass
-    links.new(gin.outputs["Geometry"], mesh_boolean.inputs["Mesh 1"])
-    links.new(material_cutter.outputs["Geometry"], mesh_boolean.inputs["Mesh 2"])
+    # Preserve smooth normals on the swept tunnel while leaving cave faces
+    # sharp. Box-projected textures use these normals to choose projections.
+    smooth_tunnel = nodes.new("GeometryNodeSetShadeSmooth")
+    smooth_tunnel.label = "Smooth Tunnel Cut"
+    smooth_tunnel.inputs["Shade Smooth"].default_value = True
+    links.new(material_cutter.outputs["Geometry"], smooth_tunnel.inputs["Mesh"])
 
-    # Smooth the boolean cut without changing the terrain mesh topology.
-    shade_smooth = nodes.new("GeometryNodeSetShadeSmooth")
-    shade_smooth.label = "Smooth Tunnel Cut"
-    links.new(mesh_boolean.outputs["Mesh"], shade_smooth.inputs["Mesh"])
+    cutter_geometry = smooth_tunnel.outputs["Mesh"]
+    cave_nodes = []
+    if cave is not None:
+        cave_geometry, cave_source_nodes = add_object_info_nodes(
+            ng,
+            objects=[cave],
+            transform_space="RELATIVE",
+            as_instance=False,
+        )
+        cave_material = nodes.new("GeometryNodeSetMaterial")
+        cave_material.label = f"Cave Material: {tunnel.ground_material.material_name}"
+        cave_material.inputs["Material"].default_value = tunnel_material
+        links.new(cave_geometry, cave_material.inputs["Geometry"])
+
+        flat_cave = nodes.new("GeometryNodeSetShadeSmooth")
+        flat_cave.label = "Keep Cave Faces Flat"
+        flat_cave.inputs["Shade Smooth"].default_value = False
+        links.new(cave_material.outputs["Geometry"], flat_cave.inputs["Mesh"])
+
+        combined_cutter = nodes.new("GeometryNodeMeshBoolean")
+        combined_cutter.label = "Tunnel and Cave Cutter"
+        _configure_exact_boolean(combined_cutter, "UNION")
+        # UNION consumes its multi-input Mesh socket.  Blender retains a
+        # legacy first socket after switching from DIFFERENCE, but geometry
+        # linked there is ignored by the UNION operation.
+        links.new(cutter_geometry, combined_cutter.inputs[1])
+        links.new(flat_cave.outputs["Mesh"], combined_cutter.inputs[1])
+        cutter_geometry = combined_cutter.outputs["Mesh"]
+        cave_nodes = [*cave_source_nodes, cave_material, flat_cave, combined_cutter]
+
+    mesh_boolean = nodes.new("GeometryNodeMeshBoolean")
+    _configure_exact_boolean(mesh_boolean, "DIFFERENCE")
+    links.new(gin.outputs["Geometry"], mesh_boolean.inputs["Mesh 1"])
+    links.new(cutter_geometry, mesh_boolean.inputs["Mesh 2"])
 
     if isinstance(entry, MineShaftEntry):
         _create_mineshaft_entry_objects(
@@ -509,15 +565,16 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
             tunnel.height,
             entry,
         )
-    links.new(shade_smooth.outputs["Mesh"], gout.inputs["Geometry"])
+    links.new(mesh_boolean.outputs["Mesh"], gout.inputs["Geometry"])
 
     entrypoint_nodes = [
         *source_nodes,
         *dimension_nodes,
         portal_cutter,
         material_cutter,
+        smooth_tunnel,
+        *cave_nodes,
         mesh_boolean,
-        shade_smooth,
     ]
     frame_nodes(ng, "Tunnel Entrypoints MVP", entrypoint_nodes)
 

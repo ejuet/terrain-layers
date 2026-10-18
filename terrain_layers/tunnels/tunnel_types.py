@@ -35,6 +35,8 @@ class Tunnel:
     curve_object_name: str
     # Tunnel walls use their own material instead of the terrain-layer shader.
     ground_material: GroundMaterial
+    # Optional closed mesh volume that is joined to the tunnel excavation.
+    cave_object_name: str | None = None
     # Object-space texture repetitions per Blender unit.  The default matches
     # the terrain tiling used by the example scene (about one repeat per 20 m).
     texture_scale: float = 0.05

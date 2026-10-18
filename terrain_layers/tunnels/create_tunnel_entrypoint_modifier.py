@@ -553,7 +553,13 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
             objects=caves,
             transform_space="RELATIVE",
             as_instance=False,
+            # A fused multi-cave cut feeds every source directly to the
+            # Boolean UNION, so creating a Join Geometry here would be dead
+            # graph state.
+            join_multiple=not (tunnel.fuse_caves and len(caves) > 1),
         )
+        if cave_geometry is None and not (tunnel.fuse_caves and len(caves) > 1):
+            raise RuntimeError("Expected joined cave geometry.")
         fused_cave_geometry = cave_geometry
         cave_union_nodes = []
         if tunnel.fuse_caves and len(caves) > 1:
@@ -608,7 +614,6 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
     links.new(cut_geometry, gout.inputs["Geometry"])
 
     entrypoint_nodes = [
-        *source_nodes,
         *dimension_nodes,
         portal_cutter,
         material_cutter,

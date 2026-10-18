@@ -26,7 +26,8 @@ def _add_object_info_nodes(
     objects: list[bpy.types.Object],
     transform_space: str,
     as_instance: bool,
-) -> tuple[bpy.types.NodeSocket, list[bpy.types.Node]]:
+    join_multiple: bool = True,
+) -> tuple[bpy.types.NodeSocket | None, list[bpy.types.Node]]:
     if not objects:
         raise RuntimeError("Expected at least one object for Object Info nodes.")
 
@@ -46,6 +47,9 @@ def _add_object_info_nodes(
     if len(object_infos) == 1:
         return object_infos[0].outputs["Geometry"], created_nodes
 
+    if not join_multiple:
+        return None, created_nodes
+
     join = nodes.new("GeometryNodeJoinGeometry")
     created_nodes.append(join)
     for object_info in object_infos:
@@ -61,15 +65,20 @@ def add_object_info_nodes(
     transform_space: str = "RELATIVE",
     as_instance: bool = False,
     frame_label: str | None = None,
-) -> tuple[bpy.types.NodeSocket, list[bpy.types.Node]]:
+    join_multiple: bool = True,
+) -> tuple[bpy.types.NodeSocket | None, list[bpy.types.Node]]:
     """
     Add Object Info nodes directly into an existing node tree.
+
+    When ``join_multiple`` is false, multiple Object Info nodes are returned
+    without a Join Geometry node and the geometry socket is ``None``.
     """
     output_socket, created_nodes = _add_object_info_nodes(
         nt,
         objects=objects,
         transform_space=transform_space,
         as_instance=as_instance,
+        join_multiple=join_multiple,
     )
     if frame_label:
         frame_nodes(nt, frame_label, created_nodes)

@@ -38,7 +38,7 @@ from terrain_layers.tunnels import (
     TunnelPath,
     TunnelShape,
     TunnelSystem,
-    create_tunnels,
+    create_tunnel_system,
 )
 
 
@@ -228,7 +228,7 @@ def run():
     )
 
     create_path_deformation(config)
-    create_tunnels(config)
+    create_tunnel_system(config)
     create_terrain_layers(config)
     create_scatter_biomes(config)
     create_terrain_shader(config)

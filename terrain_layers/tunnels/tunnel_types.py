@@ -15,7 +15,7 @@ class TunnelEntryDecoration:
     """Base type for an optional structure generated at tunnel endpoints.
 
     Add a new decoration as another subclass.  A tunnel accepts one decoration
-    at a time, which keeps the entrypoint configuration explicit while leaving
+    at a time, which keeps the entry-decoration configuration explicit while leaving
     room for additional decoration types.
     """
 

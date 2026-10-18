@@ -6,7 +6,7 @@ from .tunnel_types import (
     TunnelShape,
     TunnelSystem,
 )
-from .create_tunnels import create_tunnels
+from .create_tunnel_system import create_tunnel_system
 
 __all__ = [
     "MineShaftEntry",
@@ -15,5 +15,5 @@ __all__ = [
     "TunnelPath",
     "TunnelShape",
     "TunnelSystem",
-    "create_tunnels",
+    "create_tunnel_system",
 ]

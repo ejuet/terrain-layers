@@ -63,8 +63,8 @@ def _add_curve_to_mesh_nodes(
     return curve_to_mesh.outputs["Mesh"], [curve_to_mesh]
 
 
-def create_tunnel_portal_cutter_group(
-    group_name: str = "TerrainTunnelPortalCutter",
+def create_tunnel_path_cutter_group(
+    group_name: str = "TerrainTunnelPathCutter",
     *,
     shape: TunnelShape = TunnelShape.CIRCLE,
     keep_floor_level: bool = False,
@@ -94,7 +94,7 @@ def create_tunnel_portal_cutter_group(
     cutter_curve, curve_nodes = _add_tunnel_curve_nodes(
         ng,
         path_socket=gin.outputs["Path Geometry"],
-        label="Tunnel Cutter",
+        label="Tunnel Path Cutter",
     )
     if shape == TunnelShape.RECTANGLE and keep_floor_level:
         cutter_curve, level_floor_nodes = _add_level_floor_nodes(
@@ -120,6 +120,6 @@ def create_tunnel_portal_cutter_group(
     )
 
     links.new(cutter_mesh, gout.inputs["Cutter Mesh"])
-    frame_nodes(ng, "Tunnel Cutter", [*curve_nodes, profile, *mesh_nodes])
+    frame_nodes(ng, "Tunnel Path Cutter", [*curve_nodes, profile, *mesh_nodes])
     arrange_nodes(ng)
     return ng

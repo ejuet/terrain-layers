@@ -7,8 +7,8 @@ import bpy
 from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
-from terrain_layers.tunnels.create_tunnel_modifier import (
-    create_tunnel_portal_cutter_group,
+from terrain_layers.tunnels.create_tunnel_path_cutter import (
+    create_tunnel_path_cutter_group,
 )
 from terrain_layers.tunnels.tunnel_types import (
     MineShaftEntry,
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
 MINE_SHAFT_LOG_MATERIAL_NAME = "TerrainTunnelMineShaftLog"
 MINE_SHAFT_ENTRIES_COLLECTION_NAME = "TerrainTunnelMineShaftEntries"
 LEGACY_MINESHAFT_ENTRIES_COLLECTION_NAME = "TerrainTunnelMineshaftEntries"
+_PREVIOUS_SYSTEM_MODIFIER_NAME = "Terrain_Tunnel_Entrypoints"
 
 
 def _get_mineshaft_log_material(
@@ -588,7 +589,7 @@ def _path_batches(paths: list[_ResolvedPath]) -> list[list[_ResolvedPath]]:
     return batches
 
 
-def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
+def create_tunnel_system_modifier(config: "TerrainConfig"):
     if config.tunnel_system is None:
         return None
     paths, caves = _resolve_tunnel_system(config)
@@ -599,7 +600,14 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
         cave.object.hide_render = True
         cave.object.hide_set(True)
 
-    mod_name = config.tunnel_entrypoint_modifier_name
+    mod_name = config.tunnel_system_modifier_name
+    # The old generated modifier must not remain active alongside the renamed
+    # system modifier when a scene is rebuilt after upgrading this package.
+    if mod_name != _PREVIOUS_SYSTEM_MODIFIER_NAME:
+        previous_system_modifier = obj.modifiers.get(_PREVIOUS_SYSTEM_MODIFIER_NAME)
+        if previous_system_modifier is not None:
+            obj.modifiers.remove(previous_system_modifier)
+        remove_node_group(_PREVIOUS_SYSTEM_MODIFIER_NAME)
     previous_modifier = obj.modifiers.get(mod_name)
     if previous_modifier is not None:
         previous_modifier.show_viewport = False
@@ -640,13 +648,13 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
         path_geometry, source_nodes = add_object_info_nodes(
             ng, objects=[path.object for path in batch], transform_space="RELATIVE", as_instance=False
         )
-        cutter_group = create_tunnel_portal_cutter_group(
-            group_name=f"TerrainTunnelPortalCutter_{len(child_frames) + 1}",
+        cutter_group = create_tunnel_path_cutter_group(
+            group_name=f"TerrainTunnelPathCutter_{len(child_frames) + 1}",
             shape=first.shape, keep_floor_level=first.keep_floor_level,
         )
         portal_cutter = nodes.new("GeometryNodeGroup")
         portal_cutter.node_tree = cutter_group
-        portal_cutter.label = "Tunnel Portal Cutter"
+        portal_cutter.label = "Tunnel Path Cutter"
         links.new(path_geometry, portal_cutter.inputs["Path Geometry"])
         dimensions = {"Radius": first.radius} if first.shape == TunnelShape.CIRCLE else {"Width": first.width, "Height": first.height}
         batch_nodes = [*source_nodes]
@@ -724,7 +732,7 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
             if isinstance(path.entry_decoration, MineShaftEntry):
                 _create_mineshaft_entry_objects(obj, path.object, path.width, path.height, path.entry_decoration, entry_collection)
     links.new(cut_geometry, gout.inputs["Geometry"])
-    frame_nodes(ng, "Tunnel Entrypoints MVP", child_frames)
+    frame_nodes(ng, "Tunnel System", child_frames)
 
     mod = ensure_geo_nodes_modifier(obj, mod_name)
     mod.node_group = ng

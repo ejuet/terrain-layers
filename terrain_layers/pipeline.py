@@ -201,7 +201,7 @@ def run():
             ),
         ],
         tunnel=Tunnel(
-            curve_object_name="Tunnel_Path",
+            curve_object_names=("Tunnel_Path", "Tunnel_Path_2"),
             ground_material=GroundMaterial("Rock"),
             cave_object_name="Cave",
             texture_scale=0.05,

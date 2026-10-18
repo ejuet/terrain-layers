@@ -32,7 +32,9 @@ class MineShaftEntry(TunnelEntryDecoration):
 
 @dataclass(frozen=True, slots=True)
 class Tunnel:
-    curve_object_name: str
+    # All curve objects swept to form the tunnel.  They are combined into one
+    # cutter, so paths may intersect each other and the optional cave volume.
+    curve_object_names: tuple[str, ...]
     # Tunnel walls use their own material instead of the terrain-layer shader.
     ground_material: GroundMaterial
     # Optional closed mesh volume that is joined to the tunnel excavation.

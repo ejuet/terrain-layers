@@ -11,7 +11,7 @@ from terrain_layers.tunnels.create_tunnel_modifier import (
 )
 from terrain_layers.tunnels.tunnel_types import MineShaftEntry, TunnelShape
 from terrain_layers.shader.material_types import GroundMaterial
-from terrain_layers.paths.path_source import add_path_source_nodes, ensure_curve_object
+from terrain_layers.paths.path_source import ensure_curve_object
 from terrain_layers.utility.object_info_group import add_object_info_nodes
 from terrain_layers.utility.frame_nodes import frame_nodes
 from terrain_layers.utility.geo_nodes import (
@@ -111,9 +111,9 @@ def _create_mineshaft_entry_objects(
     tunnel_width: float,
     tunnel_height: float,
     entry: MineShaftEntry,
+    collection: bpy.types.Collection,
 ) -> None:
     """Create three-log frames at exact curve-segment/terrain intersections."""
-    collection = _clear_mineshaft_entries()
     material = _get_mineshaft_log_material(entry.ground_material)
     depsgraph = bpy.context.evaluated_depsgraph_get()
     terrain_eval = terrain.evaluated_get(depsgraph)
@@ -445,7 +445,7 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
         return None
 
     obj = get_terrain_object(config.object_name)
-    curve = ensure_curve_object(tunnel.curve_object_name)
+    curves = [ensure_curve_object(name) for name in tunnel.curve_object_names]
     cave = (
         _ensure_cave_object(tunnel.cave_object_name)
         if tunnel.cave_object_name is not None
@@ -483,11 +483,12 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
         keep_floor_level=tunnel.keep_floor_level,
     )
 
-    path_geometry, source_nodes = add_path_source_nodes(
+    path_geometry, source_nodes = add_object_info_nodes(
         ng,
-        group_namespace="TunnelEntrypointSource",
-        path_object_name=tunnel.curve_object_name,
-        path_collection_name=None,
+        objects=curves,
+        transform_space="RELATIVE",
+        as_instance=False,
+        frame_label="Tunnel Paths",
     )
 
     entry = tunnel.entry_decoration
@@ -573,13 +574,16 @@ def create_tunnel_entrypoint_modifier(config: "TerrainConfig"):
     links.new(cutter_geometry, mesh_boolean.inputs["Mesh 2"])
 
     if isinstance(entry, MineShaftEntry):
-        _create_mineshaft_entry_objects(
-            obj,
-            curve,
-            tunnel.width,
-            tunnel.height,
-            entry,
-        )
+        entry_collection = _clear_mineshaft_entries()
+        for curve in curves:
+            _create_mineshaft_entry_objects(
+                obj,
+                curve,
+                tunnel.width,
+                tunnel.height,
+                entry,
+                entry_collection,
+            )
     links.new(mesh_boolean.outputs["Mesh"], gout.inputs["Geometry"])
 
     entrypoint_nodes = [

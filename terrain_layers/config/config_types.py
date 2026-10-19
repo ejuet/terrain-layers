@@ -26,6 +26,8 @@ class PreviewLayerColor(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class ScatterBiome:
+    id: str
+    eligibility_layer_name: str
     collection_name: str
     density: float = 0.03
     seed: int = 0
@@ -42,7 +44,6 @@ class Layer:
     mask: Mask | None = None
     mask_noise: Optional[MaskNoiseConfig] = None
     pbr_source: Optional[PBRMaterialSource] = None
-    scatter_biome: Optional[ScatterBiome] = None
     preview_color: Optional[PreviewLayerColor] = None
 
 
@@ -52,8 +53,8 @@ class TerrainConfig:
     path_deformation_modifier_name: str = "Terrain_Path_Deformation"
     tunnel_system_modifier_name: str = "Terrain_Tunnel_System"
     geometry_modifier_name: str = "Terrain_Layer_Masks"
-    scatter_modifier_name: str = "Terrain_Scatter_Biomes"
     shader_name: str = "Terrain_Layered_Shader"
     preview_shader_name: str = "Terrain_Layer_Preview_Shader"
     tunnel_system: Optional[TunnelSystem] = None
     layers: list[Layer] = field(default_factory=list)
+    scatter_biomes: list[ScatterBiome] = field(default_factory=list)

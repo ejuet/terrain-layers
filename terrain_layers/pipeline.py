@@ -20,7 +20,8 @@ from terrain_layers.paths.path_deformation import (
 from terrain_layers.masks.noise import DualNoiseConfig, MaskNoiseConfig
 
 from terrain_layers.masks.create_layer_masks import create_terrain_layers
-from terrain_layers.biomes.create_scatter_biomes import create_scatter_biomes
+from terrain_layers.config.helpers import validate_terrain_config
+from terrain_layers.biomes.create_scatter_biomes import validate_scatter_collections
 
 from terrain_layers.shader.create_shader import create_terrain_shader
 from terrain_layers.shader.material_types import (
@@ -53,7 +54,6 @@ def run():
     config = TerrainConfig(
         object_name="UV_TERRAIN_TILING",
         geometry_modifier_name="Terrain_Layer_Masks",
-        scatter_modifier_name="Terrain_Scatter_Biomes",
         preview_shader_name="Terrain_Layer_Preview_Shader",
         layers=[
             Layer(
@@ -87,13 +87,6 @@ def run():
                     zone_softness=1.0,
                 ),
                 pbr_source=PBRSourceMaterial("Sand"),
-                scatter_biome=ScatterBiome(
-                    collection_name="Beach_Objects",
-                    density=0.02,
-                    seed=15,
-                    scale_min=0.9,
-                    scale_max=1.35,
-                ),
             ),
             Layer(
                 name="Grass",
@@ -114,14 +107,6 @@ def run():
                     zone_softness=1.0,
                 ),
                 pbr_source=PBRSourceMaterial("Grass"),
-                scatter_biome=ScatterBiome(
-                    collection_name="Forest_Trees",
-                    density=0.02,
-                    seed=13,
-                    scale_min=0.9,
-                    scale_max=1.35,
-                    keep_upright=True,
-                ),
             ),
             Layer(
                 name="Snow",
@@ -203,6 +188,27 @@ def run():
                 pbr_source=PBRSourceMaterial("Sand"),
             ),
         ],
+        scatter_biomes=[
+            ScatterBiome(
+                id="beach_objects",
+                eligibility_layer_name="Beach",
+                collection_name="Beach_Objects",
+                density=0.02,
+                seed=15,
+                scale_min=0.9,
+                scale_max=1.35,
+            ),
+            ScatterBiome(
+                id="forest_trees",
+                eligibility_layer_name="Grass",
+                collection_name="Forest_Trees",
+                density=0.02,
+                seed=13,
+                scale_min=0.9,
+                scale_max=1.35,
+                keep_upright=True,
+            ),
+        ],
         tunnel_system=TunnelSystem(
             paths=(
                 TunnelPath(curve_object_name="Tunnel_Path"),
@@ -236,9 +242,10 @@ def run():
         ),
     )
 
+    validate_terrain_config(config)
+    validate_scatter_collections(config.scatter_biomes)
     create_path_deformation(config)
     create_tunnel_system(config)
     create_terrain_layers(config)
-    create_scatter_biomes(config)
     create_terrain_shader(config)
     create_preview_terrain_shader(config)

@@ -323,7 +323,6 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
     mod.show_viewport = True
     mod.show_render = True
     _move_modifier_before(obj, mod_name, config.geometry_modifier_name)
-    _move_modifier_before(obj, mod_name, config.scatter_modifier_name)
 
     arrange_nodes(ng)
     return ng

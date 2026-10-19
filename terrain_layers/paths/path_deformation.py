@@ -416,7 +416,6 @@ def create_path_deformation(config: "TerrainConfig"):
     mod.node_group = ng
     mod.name = mod_name
     _move_modifier_before(obj, mod_name, config.geometry_modifier_name)
-    _move_modifier_before(obj, mod_name, config.scatter_modifier_name)
 
     arrange_nodes(ng)
     return ng

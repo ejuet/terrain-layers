@@ -29,7 +29,12 @@ from terrain_layers.masks.noise import (
 from terrain_layers.masks.priority_resolving import add_priority_resolve_node
 
 from terrain_layers.config.config_types import Layer, TerrainConfig
-from terrain_layers.config.helpers import sort_layers_by_priority
+from terrain_layers.config.helpers import sort_layers_by_priority, validate_terrain_config
+from terrain_layers.biomes.create_scatter_biomes import (
+    add_scatter_biome_nodes,
+    tunnel_interior_materials,
+    validate_scatter_collections,
+)
 
 """
 Terrain Layer Mask Utilities (only has to work for Blender 5.0.0+)
@@ -44,6 +49,8 @@ def no_mask(nt) -> tuple[MaskSocket, list[Node]]:
 
 
 def create_terrain_layers(config: TerrainConfig):
+    validate_terrain_config(config)
+    validate_scatter_collections(config.scatter_biomes)
     obj = get_terrain_object(config.object_name)
 
     if not config.layers:
@@ -88,6 +95,10 @@ def create_terrain_layers(config: TerrainConfig):
     )
 
     frames = []
+    # Retain sockets as well as storing named attributes. The explicit socket
+    # boundary lets a future priority-aware compiler supply provisional
+    # eligibility before a lower-priority layer is finalized.
+    resolved_layer_masks: dict[str, MaskSocket] = {}
     for layer in layers_sorted:
         layer_nodes = []
 
@@ -139,18 +150,49 @@ def create_terrain_layers(config: TerrainConfig):
         links.new(actual, store.inputs["Value"])
 
         prev_geo = store.outputs["Geometry"]
+        resolved_layer_masks[layer.name] = actual
 
         # Frame the layer nodes
         frame = frame_nodes(ng, f"Layer: {layer.name}", layer_nodes)
         frames.append(frame)
 
-    frame_nodes(ng, "Terrain Layers", frames)
+    layer_frame = frame_nodes(ng, "Terrain Layers", frames)
+
+    # Scatter uses the resolved mask socket directly rather than looking up a
+    # stored attribute. Point distribution remains separate from payload
+    # instancing so future priority-aware scheduling can create the points at a
+    # footprint layer's position and reuse them for payload instancing.
+    resolved_terrain_geo = prev_geo
+    biome_frames = []
+    interior_materials = tunnel_interior_materials()
+    for biome in config.scatter_biomes:
+        biome_build = add_scatter_biome_nodes(
+            ng,
+            biome=biome,
+            source_geo=resolved_terrain_geo,
+            prev_geo=prev_geo,
+            eligibility_mask=resolved_layer_masks[biome.eligibility_layer_name],
+            interior_materials=interior_materials,
+        )
+        prev_geo = biome_build.geometry
+        biome_frames.append(biome_build.frame)
+    if biome_frames:
+        scatter_frame = frame_nodes(ng, "Scatter Biomes", biome_frames)
+        if layer_frame is not None and scatter_frame is not None:
+            frame_nodes(ng, "Terrain Features", [layer_frame, scatter_frame])
 
     links.new(prev_geo, gout.inputs["Geometry"])
 
     mod = ensure_geo_nodes_modifier(obj, mod_name)
     mod.node_group = ng
     mod.name = mod_name
+
+    # Migrate the default modifier created by versions that compiled scatter
+    # separately.  It would otherwise duplicate instances after this breaking
+    # configuration change.
+    legacy_scatter = obj.modifiers.get("Terrain_Scatter_Biomes")
+    if legacy_scatter is not None and legacy_scatter is not mod:
+        obj.modifiers.remove(legacy_scatter)
 
     arrange_nodes(ng)
     return ng

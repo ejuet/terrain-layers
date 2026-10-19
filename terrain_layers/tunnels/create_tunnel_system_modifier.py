@@ -269,149 +269,6 @@ def _create_mineshaft_entry_objects(
         )
 
 
-def _add_mineshaft_entry_nodes(
-    ng: bpy.types.NodeTree,
-    *,
-    path_socket: bpy.types.NodeSocket,
-    terrain_socket: bpy.types.NodeSocket,
-    width: float,
-    height: float,
-) -> tuple[bpy.types.NodeSocket, list[bpy.types.Node]]:
-    """Build two upright logs and a lintel at each end of a rectangular path.
-
-    The local Z axis follows the tunnel direction and local X is aligned to
-    world up. This keeps the posts vertical even when the entry path reverses.
-    """
-    nodes, links = ng.nodes, ng.links
-    log_thickness = min(max(min(width, height) * 0.12, 0.12), 0.3)
-
-    endpoints = nodes.new("GeometryNodeCurveToPoints")
-    # Sample the entire path. A portal is where one of these short, tangent
-    # rays crosses the terrain surface; this also handles curves which bend
-    # substantially between their control endpoint and the tunnel entrance.
-    endpoints.mode = "COUNT"
-    endpoints.inputs["Count"].default_value = 128
-    links.new(path_socket, endpoints.inputs["Curve"])
-
-    position = nodes.new("GeometryNodeInputPosition")
-    raycast = nodes.new("GeometryNodeRaycast")
-    raycast.data_type = "FLOAT"
-    # The near-hit test below, rather than ray length, limits candidates to
-    # actual surface crossings. This constant remains valid after the curve
-    # has been converted into sampled points.
-    raycast.inputs["Ray Length"].default_value = 10000.0
-    links.new(terrain_socket, raycast.inputs["Target Geometry"])
-    links.new(position.outputs["Position"], raycast.inputs["Source Position"])
-    links.new(endpoints.outputs["Tangent"], raycast.inputs["Ray Direction"])
-
-    portal_points = nodes.new("GeometryNodeSetPosition")
-    links.new(endpoints.outputs["Points"], portal_points.inputs["Geometry"])
-    links.new(raycast.outputs["Hit Position"], portal_points.inputs["Position"])
-    near_surface = nodes.new("FunctionNodeCompare")
-    near_surface.data_type = "FLOAT"
-    near_surface.operation = "LESS_THAN"
-    near_surface.inputs[1].default_value = max(width, height)
-    links.new(raycast.outputs["Hit Distance"], near_surface.inputs[0])
-    surface_alignment = nodes.new("ShaderNodeVectorMath")
-    surface_alignment.operation = "DOT_PRODUCT"
-    links.new(raycast.outputs["Hit Normal"], surface_alignment.inputs[0])
-    links.new(endpoints.outputs["Tangent"], surface_alignment.inputs[1])
-    absolute_alignment = nodes.new("ShaderNodeMath")
-    absolute_alignment.operation = "ABSOLUTE"
-    links.new(surface_alignment.outputs["Value"], absolute_alignment.inputs[0])
-    faces_tunnel = nodes.new("FunctionNodeCompare")
-    faces_tunnel.data_type = "FLOAT"
-    faces_tunnel.operation = "GREATER_THAN"
-    faces_tunnel.inputs[1].default_value = 0.5
-    links.new(absolute_alignment.outputs["Value"], faces_tunnel.inputs[0])
-    is_portal = nodes.new("FunctionNodeBooleanMath")
-    is_portal.operation = "AND"
-    links.new(raycast.outputs["Is Hit"], is_portal.inputs[0])
-    links.new(near_surface.outputs["Result"], is_portal.inputs[1])
-    faces_portal = nodes.new("FunctionNodeBooleanMath")
-    faces_portal.operation = "AND"
-    links.new(is_portal.outputs["Boolean"], faces_portal.inputs[0])
-    links.new(faces_tunnel.outputs["Result"], faces_portal.inputs[1])
-    non_portal = nodes.new("FunctionNodeBooleanMath")
-    non_portal.operation = "NOT"
-    links.new(faces_portal.outputs["Boolean"], non_portal.inputs[0])
-    delete_non_portals = nodes.new("GeometryNodeDeleteGeometry")
-    delete_non_portals.domain = "POINT"
-    links.new(portal_points.outputs["Geometry"], delete_non_portals.inputs["Geometry"])
-    links.new(non_portal.outputs["Boolean"], delete_non_portals.inputs["Selection"])
-    merge_portals = nodes.new("GeometryNodeMergeByDistance")
-    merge_portals.inputs["Distance"].default_value = max(width, height) * 2.0
-    links.new(delete_non_portals.outputs["Geometry"], merge_portals.inputs["Geometry"])
-
-    # Align Z with the tunnel direction, then lock X to world up.  The latter
-    # makes the decoration read as a timber doorway rather than rolling with
-    # the curve's tilt.
-    align_tangent = nodes.new("FunctionNodeAlignEulerToVector")
-    align_tangent.axis = "Z"
-    links.new(endpoints.outputs["Tangent"], align_tangent.inputs["Vector"])
-    align_up = nodes.new("FunctionNodeAlignEulerToVector")
-    align_up.axis = "X"
-    align_up.pivot_axis = "Z"
-    align_up.inputs["Vector"].default_value = (0.0, 0.0, 1.0)
-    links.new(align_tangent.outputs["Rotation"], align_up.inputs["Rotation"])
-
-    def log(size: tuple[float, float, float], translation: tuple[float, float, float]):
-        cube = nodes.new("GeometryNodeMeshCube")
-        cube.inputs["Size"].default_value = size
-        transform = nodes.new("GeometryNodeTransform")
-        transform.inputs["Translation"].default_value = translation
-        links.new(cube.outputs["Mesh"], transform.inputs["Geometry"])
-        return transform
-
-    post_height = height + log_thickness
-    side_offset = width / 2 + log_thickness / 2
-    left_post = log((post_height, log_thickness, log_thickness), (0.0, -side_offset, 0.0))
-    right_post = log((post_height, log_thickness, log_thickness), (0.0, side_offset, 0.0))
-    lintel = log(
-        (log_thickness, width + 2 * log_thickness, log_thickness),
-        (height / 2 + log_thickness / 2, 0.0, 0.0),
-    )
-
-    join_logs = nodes.new("GeometryNodeJoinGeometry")
-    for node in (left_post, right_post, lintel):
-        links.new(node.outputs["Geometry"], join_logs.inputs["Geometry"])
-
-    instances = nodes.new("GeometryNodeInstanceOnPoints")
-    links.new(merge_portals.outputs["Geometry"], instances.inputs["Points"])
-    links.new(join_logs.outputs["Geometry"], instances.inputs["Instance"])
-    links.new(align_up.outputs["Rotation"], instances.inputs["Rotation"])
-
-    realize = nodes.new("GeometryNodeRealizeInstances")
-    links.new(instances.outputs["Instances"], realize.inputs["Geometry"])
-    set_material = nodes.new("GeometryNodeSetMaterial")
-    set_material.inputs["Material"].default_value = _get_mineshaft_log_material()
-    links.new(realize.outputs["Geometry"], set_material.inputs["Geometry"])
-    return set_material.outputs["Geometry"], [
-        endpoints,
-        position,
-        raycast,
-        portal_points,
-        near_surface,
-        surface_alignment,
-        absolute_alignment,
-        faces_tunnel,
-        is_portal,
-        faces_portal,
-        non_portal,
-        delete_non_portals,
-        merge_portals,
-        align_tangent,
-        align_up,
-        left_post,
-        right_post,
-        lintel,
-        join_logs,
-        instances,
-        realize,
-        set_material,
-    ]
-
-
 def _move_modifier_before(
     obj: bpy.types.Object,
     modifier_name: str,
@@ -466,7 +323,6 @@ def _configure_boolean(
 
 @dataclass(frozen=True, slots=True)
 class _ResolvedPath:
-    config: object
     object: bpy.types.Object
     shape: TunnelShape
     radius: float
@@ -492,7 +348,6 @@ class _ResolvedPath:
 
 @dataclass(frozen=True, slots=True)
 class _ResolvedCave:
-    config: object
     object: bpy.types.Object
     ground_material: GroundMaterial
     texture_scale: float
@@ -546,7 +401,6 @@ def _resolve_tunnel_system(
             )
         paths.append(
             _ResolvedPath(
-                path,
                 ensure_curve_object(path.curve_object_name),
                 shape,
                 radius,
@@ -574,7 +428,6 @@ def _resolve_tunnel_system(
         if cave.fuse_group is not None and not cave.fuse_group:
             raise ValueError("Tunnel cave fuse_group must be a non-empty name or None.")
         resolved = _ResolvedCave(
-            cave,
             _ensure_cave_object(cave.cave_object_name),
             cave.ground_material or system.ground_material,
             float(

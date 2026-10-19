@@ -82,12 +82,12 @@ def _get_layer_preview_color(layer: Layer) -> tuple[float, float, float, float]:
         chosen = _resolve_preview_color(layer.preview_color)
         return _PREVIEW_COLOR_VALUES[chosen]
 
-    if layer.ground_material is None:
+    if layer.pbr_source is None:
         raise ValueError(
             f"Layer '{layer.name}' has no preview_color and no PBR material source to sample."
         )
 
-    source = layer.ground_material
+    source = layer.pbr_source
     cache_key = id(source)
     cached_color = _MATERIAL_PREVIEW_COLOR_CACHE.get(cache_key)
     if cached_color is not None:

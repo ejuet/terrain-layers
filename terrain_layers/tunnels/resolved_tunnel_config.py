@@ -25,7 +25,7 @@ class ResolvedPath:
     width: float
     height: float
     keep_floor_level: bool
-    ground_material: PBRMaterialSource
+    pbr_source: PBRMaterialSource
     texture_scale: float
     entry_decoration: TunnelEntryDecoration | None
 
@@ -37,7 +37,7 @@ class ResolvedPath:
             self.width if self.shape == TunnelShape.RECTANGLE else None,
             self.height if self.shape == TunnelShape.RECTANGLE else None,
             self.keep_floor_level if self.shape == TunnelShape.RECTANGLE else None,
-            self.ground_material,
+            self.pbr_source,
             self.texture_scale,
         )
 
@@ -45,7 +45,7 @@ class ResolvedPath:
 @dataclass(frozen=True, slots=True)
 class ResolvedCave:
     object: bpy.types.Object
-    ground_material: PBRMaterialSource
+    pbr_source: PBRMaterialSource
     texture_scale: float
     fuse_group: str | None
 
@@ -122,7 +122,7 @@ def resolve_tunnel_system(
                     if path.keep_floor_level is not None
                     else system.keep_floor_level
                 ),
-                path.ground_material or system.ground_material,
+                path.pbr_source or system.pbr_source,
                 float(
                     path.texture_scale
                     if path.texture_scale is not None
@@ -140,7 +140,7 @@ def resolve_tunnel_system(
             raise ValueError("Tunnel cave fuse_group must be a non-empty name or None.")
         resolved = ResolvedCave(
             _ensure_cave_object(cave.cave_object_name),
-            cave.ground_material or system.ground_material,
+            cave.pbr_source or system.pbr_source,
             float(
                 cave.texture_scale
                 if cave.texture_scale is not None
@@ -149,7 +149,7 @@ def resolve_tunnel_system(
             cave.fuse_group,
         )
         if resolved.fuse_group is not None:
-            settings = (resolved.ground_material, resolved.texture_scale)
+            settings = (resolved.pbr_source, resolved.texture_scale)
             previous = group_settings.setdefault(resolved.fuse_group, settings)
             if previous != settings:
                 raise ValueError(

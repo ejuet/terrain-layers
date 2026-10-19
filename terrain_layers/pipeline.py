@@ -61,7 +61,7 @@ def run():
                 priority=0,
                 strength=1.0,
                 preview_color=PreviewLayerColor.BLUE,
-                ground_material=PBRSourceMaterial(
+                pbr_source=PBRSourceMaterial(
                     "Muddy ground with underwater moss",
                     uv_scale=2.0,
                     uv_warp=UVWarpConfig(),
@@ -86,7 +86,7 @@ def run():
                     zone_width=0.35,
                     zone_softness=1.0,
                 ),
-                ground_material=PBRSourceMaterial("Sand"),
+                pbr_source=PBRSourceMaterial("Sand"),
                 scatter_biome=ScatterBiome(
                     collection_name="Beach_Objects",
                     density=0.02,
@@ -113,7 +113,7 @@ def run():
                     zone_width=0.5,
                     zone_softness=1.0,
                 ),
-                ground_material=PBRSourceMaterial("Grass"),
+                pbr_source=PBRSourceMaterial("Grass"),
                 scatter_biome=ScatterBiome(
                     collection_name="Forest_Trees",
                     density=0.02,
@@ -141,7 +141,7 @@ def run():
                     zone_width=0.3,
                     zone_softness=1.2,
                 ),
-                ground_material=PBRSourceMaterial("Snow"),
+                pbr_source=PBRSourceMaterial("Snow"),
             ),
             Layer(
                 name="Rock",
@@ -161,7 +161,7 @@ def run():
                     zone_width=0.4,
                     zone_softness=1.0,
                 ),
-                ground_material=PBRSourceMaterial("Rock"),
+                pbr_source=PBRSourceMaterial("Rock"),
             ),
             Layer(
                 name="Volcanos",
@@ -170,7 +170,7 @@ def run():
                 mask=PaintMask(
                     image_name="IMG_Terrain_VolcanosMask",
                 ),
-                ground_material=PBRSourceMaterial("04 Vulcanic Rock Surface D"),
+                pbr_source=PBRSourceMaterial("04 Vulcanic Rock Surface D"),
             ),
             Layer(
                 name="Roads",
@@ -200,7 +200,7 @@ def run():
                     ],
                     path_inactive_areas_collection="Path_Inactive_Areas",
                 ),
-                ground_material=PBRSourceMaterial("Sand"),
+                pbr_source=PBRSourceMaterial("Sand"),
             ),
         ],
         tunnel_system=TunnelSystem(
@@ -213,7 +213,7 @@ def run():
                     entry_decoration=False,
                 ),
             ),
-            ground_material=PBRSourceMaterial("Rock"),
+            pbr_source=PBRSourceMaterial("Rock"),
             caves=(
                 TunnelCave(cave_object_name="Cave", fuse_group="Main Cave"),
                 TunnelCave(cave_object_name="Cave_2", fuse_group="Main Cave"),
@@ -224,7 +224,7 @@ def run():
             shape=TunnelShape.RECTANGLE,
             keep_floor_level=True,
             entry_decoration=MineShaftEntry(
-                ground_material=PBRTextureSet(
+                pbr_source=PBRTextureSet(
                     name="Bark",
                     base_color="//bark_texture/diffuse.jpg",
                     normal="//bark_texture/normal.exr",

@@ -29,7 +29,7 @@ config = TerrainConfig(
             name="Underwater",
             priority=0,
             strength=1.0,
-            ground_material=PBRSourceMaterial(
+            pbr_source=PBRSourceMaterial(
                 "Muddy ground with underwater moss",
                 uv_scale=2.0,
                 uv_warp=UVWarpConfig(),
@@ -54,7 +54,7 @@ config = TerrainConfig(
                 zone_width=0.35,
                 zone_softness=1.0,
             ),
-            ground_material=PBRSourceMaterial("Sand"),
+            pbr_source=PBRSourceMaterial("Sand"),
         ),
         Layer(
             name="Grass",
@@ -74,7 +74,7 @@ config = TerrainConfig(
                 zone_width=0.5,
                 zone_softness=1.0,
             ),
-            ground_material=PBRSourceMaterial("Grass"),
+            pbr_source=PBRSourceMaterial("Grass"),
         ),
         Layer(
             name="Snow",
@@ -94,7 +94,7 @@ config = TerrainConfig(
                 zone_width=0.3,
                 zone_softness=1.2,
             ),
-            ground_material=PBRSourceMaterial("Snow"),
+            pbr_source=PBRSourceMaterial("Snow"),
         ),
         Layer(
             name="Rock",
@@ -114,7 +114,7 @@ config = TerrainConfig(
                 zone_width=0.4,
                 zone_softness=1.0,
             ),
-            ground_material=PBRSourceMaterial("Rock"),
+            pbr_source=PBRSourceMaterial("Rock"),
         ),
         Layer(
             name="Volcanos",
@@ -123,7 +123,7 @@ config = TerrainConfig(
             mask=PaintMask(
                 image_name="IMG_Terrain_VolcanosMask",
             ),
-            ground_material=PBRSourceMaterial("04 Vulcanic Rock Surface D"),
+            pbr_source=PBRSourceMaterial("04 Vulcanic Rock Surface D"),
         ),
         Layer(
             name="Roads",
@@ -146,7 +146,7 @@ config = TerrainConfig(
                     ),
                 ],
             ),
-            ground_material=PBRSourceMaterial("Dirt road"),
+            pbr_source=PBRSourceMaterial("Dirt road"),
         ),
     ],
 )

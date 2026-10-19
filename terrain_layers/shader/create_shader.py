@@ -242,12 +242,12 @@ def _make_pbr_layer_group(
     return ng
 
 
-def create_ground_material_shader(
-    ground_material: PBRMaterialSource,
+def create_pbr_material_shader(
+    pbr_source: PBRMaterialSource,
     shader_name: str,
     texture_scale: float = 0.05,
 ) -> bpy.types.Material:
-    """Create a standalone PBR material from a :class:`PBRMaterialSource`.
+    """Create a standalone material from a :class:`PBRMaterialSource`.
 
     Terrain layers share one shader because their masks blend together.  Tunnel
     interiors instead need one unmasked material, so they get this separate
@@ -280,16 +280,16 @@ def create_ground_material_shader(
     pbr = nodes.new("ShaderNodeGroup")
     pbr.node_tree = _make_pbr_layer_group(
         "Tunnel",
-        ground_material,
+        pbr_source,
         image_projection="BOX",
         image_projection_blend=0.15,
     )
-    pbr.label = f"Tunnel: {ground_material.display_name}"
+    pbr.label = f"Tunnel: {pbr_source.display_name}"
     links.new(mapping.outputs["Vector"], pbr.inputs["Vector"])
-    pbr.inputs["UV Scale"].default_value = float(ground_material.uv_scale)
+    pbr.inputs["UV Scale"].default_value = float(pbr_source.uv_scale)
     pbr.inputs["Normal Strength"].default_value = 1.0
 
-    uv_warp = ground_material.uv_warp
+    uv_warp = pbr_source.uv_warp
     if uv_warp is not None:
         pbr.inputs["UV Warp Amount"].default_value = float(uv_warp.amount)
         dual_noise = uv_warp.dual_noise
@@ -305,7 +305,7 @@ def create_ground_material_shader(
     else:
         pbr.inputs["UV Warp Amount"].default_value = 0.0
 
-    anti_tiling = ground_material.uv_anti_tiling
+    anti_tiling = pbr_source.uv_anti_tiling
     if anti_tiling is not None:
         pbr.inputs["AntiTile Enable"].default_value = 1.0
         pbr.inputs["AntiTile Blend"].default_value = float(anti_tiling.blend)
@@ -376,20 +376,20 @@ def create_terrain_shader(config: TerrainConfig):
     layer_frames: list[bpy.types.Node | None] = []
 
     for layer in config.layers:
-        if layer.ground_material is None:
+        if layer.pbr_source is None:
             continue
 
         g = nodes.new("ShaderNodeGroup")
-        g.node_tree = _make_pbr_layer_group(layer.name, layer.ground_material)
+        g.node_tree = _make_pbr_layer_group(layer.name, layer.pbr_source)
         g.label = f"Layer: {layer.name}"
 
         links.new(mapping.outputs["Vector"], g.inputs["Vector"])
         g.inputs["UV Scale"].default_value = float(
-            getattr(layer.ground_material, "uv_scale", 1.0)
+            getattr(layer.pbr_source, "uv_scale", 1.0)
         )
         g.inputs["Normal Strength"].default_value = 1.0
 
-        uvw = layer.ground_material.uv_warp
+        uvw = layer.pbr_source.uv_warp
         if uvw is not None:
             g.inputs["UV Warp Amount"].default_value = float(uvw.amount)
             dn = uvw.dual_noise
@@ -405,7 +405,7 @@ def create_terrain_shader(config: TerrainConfig):
         else:
             g.inputs["UV Warp Amount"].default_value = 0.0
 
-        at = layer.ground_material.uv_anti_tiling
+        at = layer.pbr_source.uv_anti_tiling
         if at is not None:
             g.inputs["AntiTile Enable"].default_value = 1.0
             g.inputs["AntiTile Blend"].default_value = float(at.blend)
@@ -523,18 +523,18 @@ def run():
         layers=[
             Layer(
                 name="Underwater",
-                ground_material=PBRSourceMaterial(
+                pbr_source=PBRSourceMaterial(
                     "Muddy ground with underwater moss",
                     uv_scale=2.0,
                     uv_warp=UVWarpConfig(),
                     uv_anti_tiling=UVAntiTilingConfig(),
                 ),
             ),
-            Layer(name="Beach", ground_material=PBRSourceMaterial("Sand")),
-            Layer(name="Sand Painted", ground_material=PBRSourceMaterial("Sand")),
-            Layer(name="Grass", ground_material=PBRSourceMaterial("Grass")),
-            Layer(name="Rock", ground_material=PBRSourceMaterial("Rock")),
-            Layer(name="Snow", ground_material=PBRSourceMaterial("Snow")),
+            Layer(name="Beach", pbr_source=PBRSourceMaterial("Sand")),
+            Layer(name="Sand Painted", pbr_source=PBRSourceMaterial("Sand")),
+            Layer(name="Grass", pbr_source=PBRSourceMaterial("Grass")),
+            Layer(name="Rock", pbr_source=PBRSourceMaterial("Rock")),
+            Layer(name="Snow", pbr_source=PBRSourceMaterial("Snow")),
         ],
     )
     create_terrain_shader(config)

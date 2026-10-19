@@ -136,7 +136,7 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
     gout = nodes.new("NodeGroupOutput")
 
     # Import lazily to avoid a configuration <-> tunnel module import cycle.
-    from terrain_layers.shader.create_shader import create_ground_material_shader
+    from terrain_layers.shader.create_shader import create_pbr_material_shader
 
     material_cache: dict[tuple[PBRMaterialSource, float], bpy.types.Material] = {}
 
@@ -145,7 +145,7 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
     ) -> bpy.types.Material:
         key = (material, texture_scale)
         if key not in material_cache:
-            material_cache[key] = create_ground_material_shader(
+            material_cache[key] = create_pbr_material_shader(
                 material,
                 f"{config.shader_name}_Tunnel_{len(material_cache) + 1}",
                 texture_scale,
@@ -197,10 +197,10 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
             batch_nodes.extend((value, clearance))
         material_cutter = nodes.new("GeometryNodeSetMaterial")
         material_cutter.label = (
-            f"Tunnel Material: {first.ground_material.display_name}"
+            f"Tunnel Material: {first.pbr_source.display_name}"
         )
         material_cutter.inputs["Material"].default_value = material_for(
-            first.ground_material, first.texture_scale
+            first.pbr_source, first.texture_scale
         )
         links.new(
             portal_cutter.outputs["Cutter Mesh"], material_cutter.inputs["Geometry"]
@@ -255,9 +255,9 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
             geometry = union.outputs["Mesh"]
             unit_nodes.append(union)
         material = nodes.new("GeometryNodeSetMaterial")
-        material.label = f"Cave Material: {unit[0].ground_material.display_name}"
+        material.label = f"Cave Material: {unit[0].pbr_source.display_name}"
         material.inputs["Material"].default_value = material_for(
-            unit[0].ground_material, unit[0].texture_scale
+            unit[0].pbr_source, unit[0].texture_scale
         )
         links.new(geometry, material.inputs["Geometry"])
         flat = nodes.new("GeometryNodeSetShadeSmooth")

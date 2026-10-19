@@ -41,7 +41,7 @@ class Layer:
     strength: float = 1.0
     mask: Mask | None = None
     mask_noise: Optional[MaskNoiseConfig] = None
-    ground_material: Optional[PBRMaterialSource] = None
+    pbr_source: Optional[PBRMaterialSource] = None
     scatter_biome: Optional[ScatterBiome] = None
     preview_color: Optional[PreviewLayerColor] = None
 

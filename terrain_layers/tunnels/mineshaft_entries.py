@@ -14,16 +14,16 @@ LEGACY_MINESHAFT_ENTRIES_COLLECTION_NAME = "TerrainTunnelMineshaftEntries"
 
 
 def get_mineshaft_log_material(
-    ground_material: PBRMaterialSource | None = None,
+    pbr_source: PBRMaterialSource | None = None,
 ) -> bpy.types.Material:
     """Return the configured log material or the simple brown fallback."""
-    if ground_material is not None:
+    if pbr_source is not None:
         # Imported lazily to keep tunnel configuration independent from the
         # shader implementation.
-        from terrain_layers.shader.create_shader import create_ground_material_shader
+        from terrain_layers.shader.create_shader import create_pbr_material_shader
 
-        return create_ground_material_shader(
-            ground_material,
+        return create_pbr_material_shader(
+            pbr_source,
             MINE_SHAFT_LOG_MATERIAL_NAME,
         )
 
@@ -106,7 +106,7 @@ def create_mineshaft_entry_objects(
     collection: bpy.types.Collection,
 ) -> None:
     """Create three-log frames at exact curve-segment/terrain intersections."""
-    material = get_mineshaft_log_material(entry.ground_material)
+    material = get_mineshaft_log_material(entry.pbr_source)
     depsgraph = bpy.context.evaluated_depsgraph_get()
     terrain_eval = terrain.evaluated_get(depsgraph)
     terrain_mesh = terrain_eval.to_mesh()

@@ -6,6 +6,10 @@ from enum import Enum
 from terrain_layers.shader.material_types import GroundMaterial
 
 
+# Identifies materials assigned to faces created by a tunnel/cave boolean.
+TUNNEL_INTERIOR_MATERIAL_MARKER = "terrain_layers.tunnel_interior"
+
+
 class TunnelShape(str, Enum):
     CIRCLE = "circle"
     RECTANGLE = "rectangle"

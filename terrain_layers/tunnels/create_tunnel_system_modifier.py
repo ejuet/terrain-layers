@@ -14,6 +14,7 @@ from terrain_layers.tunnels.tunnel_types import (
     MineShaftEntry,
     TunnelEntryDecoration,
     TunnelShape,
+    TUNNEL_INTERIOR_MATERIAL_MARKER,
 )
 from terrain_layers.shader.material_types import GroundMaterial
 from terrain_layers.paths.path_source import ensure_curve_object
@@ -803,6 +804,7 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
             material_cache[key] = create_ground_material_shader(
                 material, f"{config.shader_name}_Tunnel_{len(material_cache) + 1}", texture_scale
             )
+            material_cache[key][TUNNEL_INTERIOR_MATERIAL_MARKER] = True
         return material_cache[key]
 
     child_frames: list[bpy.types.Node] = []

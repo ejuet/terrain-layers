@@ -14,6 +14,7 @@ from terrain_layers.utility.geo_nodes import (
 from terrain_layers.utility.object_info_group import create_object_info_group
 from terrain_layers.utility.nodes import gn_math_multiply, gn_value_float
 from terrain_layers.utility.rearrange import arrange_nodes
+from terrain_layers.tunnels.tunnel_types import TUNNEL_INTERIOR_MATERIAL_MARKER
 
 
 def _safe_key(s: str) -> str:
@@ -66,6 +67,48 @@ def create_scatter_payload_group(
     return payload_group
 
 
+def _tunnel_interior_materials() -> list[bpy.types.Material]:
+    """Return the materials assigned to faces cut by tunnels and caves."""
+    return [
+        material
+        for material in bpy.data.materials
+        if material.get(TUNNEL_INTERIOR_MATERIAL_MARKER, False)
+    ]
+
+
+def _add_exterior_surface_selection(
+    ng: bpy.types.NodeTree, interior_materials: list[bpy.types.Material]
+) -> tuple[bpy.types.NodeSocket | None, list[bpy.types.Node]]:
+    """Build a face selection which excludes tunnel/cave interior materials."""
+    if not interior_materials:
+        return None, []
+
+    nodes, links = ng.nodes, ng.links
+    selections: list[bpy.types.NodeSocket] = []
+    selection_nodes: list[bpy.types.Node] = []
+    for material in interior_materials:
+        selection = nodes.new("GeometryNodeMaterialSelection")
+        selection.label = f"Tunnel Interior: {material.name}"
+        selection.inputs["Material"].default_value = material
+        selections.append(selection.outputs["Selection"])
+        selection_nodes.append(selection)
+
+    interior_selection = selections[0]
+    for selection in selections[1:]:
+        either_interior = nodes.new("FunctionNodeBooleanMath")
+        either_interior.operation = "OR"
+        links.new(interior_selection, either_interior.inputs[0])
+        links.new(selection, either_interior.inputs[1])
+        interior_selection = either_interior.outputs["Boolean"]
+        selection_nodes.append(either_interior)
+
+    exterior_selection = nodes.new("FunctionNodeBooleanMath")
+    exterior_selection.operation = "NOT"
+    links.new(interior_selection, exterior_selection.inputs[0])
+    selection_nodes.append(exterior_selection)
+    return exterior_selection.outputs["Boolean"], selection_nodes
+
+
 def add_scatter_biome_nodes(
     ng: bpy.types.NodeTree,
     *,
@@ -73,6 +116,7 @@ def add_scatter_biome_nodes(
     biome: ScatterBiome,
     source_geo: bpy.types.NodeSocket,
     prev_geo: bpy.types.NodeSocket,
+    interior_materials: list[bpy.types.Material],
 ) -> tuple[bpy.types.NodeSocket, bpy.types.Node | None]:
     """
     Add the node chain that scatters one biome onto the terrain.
@@ -117,7 +161,14 @@ def add_scatter_biome_nodes(
     distribute.inputs["Seed"].default_value = int(biome.seed)
     links.new(source_geo, distribute.inputs["Mesh"])
     links.new(masked_density, distribute.inputs["Density"])
-    layer_frames.append(frame_nodes(ng, "Distribute Points", [distribute]))
+    exterior_selection, selection_nodes = _add_exterior_surface_selection(
+        ng, interior_materials
+    )
+    if exterior_selection is not None:
+        links.new(exterior_selection, distribute.inputs["Selection"])
+    layer_frames.append(
+        frame_nodes(ng, "Distribute Points", [distribute, *selection_nodes])
+    )
 
     payload_group = nodes.new("GeometryNodeGroup")
     payload_group.node_tree = create_scatter_payload_group(layer, biome)
@@ -214,6 +265,7 @@ def create_scatter_biomes(config: TerrainConfig):
     prev_geo = gin.outputs["Geometry"]
 
     biome_frames: list[bpy.types.Node] = []
+    interior_materials = _tunnel_interior_materials()
     for layer in scatter_layers:
         biome = layer.scatter_biome
         if biome is None:
@@ -224,6 +276,7 @@ def create_scatter_biomes(config: TerrainConfig):
             biome=biome,
             source_geo=source_geo,
             prev_geo=prev_geo,
+            interior_materials=interior_materials,
         )
         if biome_frame is not None:
             biome_frames.append(biome_frame)

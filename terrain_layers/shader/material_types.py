@@ -19,7 +19,7 @@ class UVAntiTilingConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class GroundMaterial:
+class PBRSourceMaterial:
     material_name: str  # Material to take textures from
     uv_scale: float = 1.0
     uv_warp: Optional[UVWarpConfig] = None

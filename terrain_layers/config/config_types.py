@@ -3,7 +3,7 @@ from enum import Enum
 from typing import Optional
 from terrain_layers.masks.mask_types import Mask
 from terrain_layers.masks.noise import MaskNoiseConfig
-from terrain_layers.shader.material_types import GroundMaterial
+from terrain_layers.shader.material_types import PBRSourceMaterial
 from terrain_layers.tunnels.tunnel_types import TunnelSystem
 
 
@@ -41,7 +41,7 @@ class Layer:
     strength: float = 1.0
     mask: Mask | None = None
     mask_noise: Optional[MaskNoiseConfig] = None
-    ground_material: Optional[GroundMaterial] = None
+    ground_material: Optional[PBRSourceMaterial] = None
     scatter_biome: Optional[ScatterBiome] = None
     preview_color: Optional[PreviewLayerColor] = None
 

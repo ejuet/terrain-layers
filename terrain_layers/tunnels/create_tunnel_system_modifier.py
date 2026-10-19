@@ -4,8 +4,10 @@ from typing import TYPE_CHECKING
 
 import bpy
 
-from terrain_layers.shader.material_types import GroundMaterial
-from terrain_layers.tunnels.create_tunnel_path_cutter import create_tunnel_path_cutter_group
+from terrain_layers.shader.material_types import PBRSourceMaterial
+from terrain_layers.tunnels.create_tunnel_path_cutter import (
+    create_tunnel_path_cutter_group,
+)
 from terrain_layers.tunnels.mineshaft_entries import (
     clear_mineshaft_entries,
     create_mineshaft_entry_objects,
@@ -81,6 +83,7 @@ def _configure_boolean(
     if hole_tolerant_input is not None:
         hole_tolerant_input.default_value = hole_tolerant
 
+
 def _path_batches(paths: list[ResolvedPath]) -> list[list[ResolvedPath]]:
     batches: list[list[ResolvedPath]] = []
     for path in paths:
@@ -134,12 +137,18 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
 
     # Import lazily to avoid a configuration <-> tunnel module import cycle.
     from terrain_layers.shader.create_shader import create_ground_material_shader
-    material_cache: dict[tuple[GroundMaterial, float], bpy.types.Material] = {}
-    def material_for(material: GroundMaterial, texture_scale: float) -> bpy.types.Material:
+
+    material_cache: dict[tuple[PBRSourceMaterial, float], bpy.types.Material] = {}
+
+    def material_for(
+        material: PBRSourceMaterial, texture_scale: float
+    ) -> bpy.types.Material:
         key = (material, texture_scale)
         if key not in material_cache:
             material_cache[key] = create_ground_material_shader(
-                material, f"{config.shader_name}_Tunnel_{len(material_cache) + 1}", texture_scale
+                material,
+                f"{config.shader_name}_Tunnel_{len(material_cache) + 1}",
+                texture_scale,
             )
             material_cache[key][TUNNEL_INTERIOR_MATERIAL_MARKER] = True
         return material_cache[key]
@@ -159,17 +168,25 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
     for batch in _path_batches(paths):
         first = batch[0]
         path_geometry, source_nodes = add_object_info_nodes(
-            ng, objects=[path.object for path in batch], transform_space="RELATIVE", as_instance=False
+            ng,
+            objects=[path.object for path in batch],
+            transform_space="RELATIVE",
+            as_instance=False,
         )
         cutter_group = create_tunnel_path_cutter_group(
             group_name=f"TerrainTunnelPathCutter_{len(child_frames) + 1}",
-            shape=first.shape, keep_floor_level=first.keep_floor_level,
+            shape=first.shape,
+            keep_floor_level=first.keep_floor_level,
         )
         portal_cutter = nodes.new("GeometryNodeGroup")
         portal_cutter.node_tree = cutter_group
         portal_cutter.label = "Tunnel Path Cutter"
         links.new(path_geometry, portal_cutter.inputs["Path Geometry"])
-        dimensions = {"Radius": first.radius} if first.shape == TunnelShape.CIRCLE else {"Width": first.width, "Height": first.height}
+        dimensions = (
+            {"Radius": first.radius}
+            if first.shape == TunnelShape.CIRCLE
+            else {"Width": first.width, "Height": first.height}
+        )
         batch_nodes = [*source_nodes]
         for name, size in dimensions.items():
             value, clearance = nodes.new("ShaderNodeValue"), nodes.new("ShaderNodeMath")
@@ -179,15 +196,28 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
             links.new(clearance.outputs["Value"], portal_cutter.inputs[name])
             batch_nodes.extend((value, clearance))
         material_cutter = nodes.new("GeometryNodeSetMaterial")
-        material_cutter.label = f"Tunnel Material: {first.ground_material.material_name}"
-        material_cutter.inputs["Material"].default_value = material_for(first.ground_material, first.texture_scale)
-        links.new(portal_cutter.outputs["Cutter Mesh"], material_cutter.inputs["Geometry"])
+        material_cutter.label = (
+            f"Tunnel Material: {first.ground_material.material_name}"
+        )
+        material_cutter.inputs["Material"].default_value = material_for(
+            first.ground_material, first.texture_scale
+        )
+        links.new(
+            portal_cutter.outputs["Cutter Mesh"], material_cutter.inputs["Geometry"]
+        )
         smooth = nodes.new("GeometryNodeSetShadeSmooth")
-        smooth.label, smooth.inputs["Shade Smooth"].default_value = "Smooth Tunnel Cut", True
+        smooth.label, smooth.inputs["Shade Smooth"].default_value = (
+            "Smooth Tunnel Cut",
+            True,
+        )
         links.new(material_cutter.outputs["Geometry"], smooth.inputs["Mesh"])
         cutters.append(smooth.outputs["Mesh"])
         names = " + ".join(path.object.name for path in batch)
-        frame = frame_nodes(ng, ("Path: " if len(batch) == 1 else "Paths: ") + names, [*batch_nodes, portal_cutter, material_cutter, smooth])
+        frame = frame_nodes(
+            ng,
+            ("Path: " if len(batch) == 1 else "Paths: ") + names,
+            [*batch_nodes, portal_cutter, material_cutter, smooth],
+        )
         if frame:
             child_frames.append(frame)
 
@@ -200,10 +230,18 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
             cave_units.append((None, [cave]))
         elif cave.fuse_group not in grouped:
             grouped.add(cave.fuse_group)
-            cave_units.append((cave.fuse_group, [item for item in caves if item.fuse_group == cave.fuse_group]))
+            cave_units.append(
+                (
+                    cave.fuse_group,
+                    [item for item in caves if item.fuse_group == cave.fuse_group],
+                )
+            )
     for group_name, unit in cave_units:
         geometry, source_nodes = add_object_info_nodes(
-            ng, objects=[cave.object for cave in unit], transform_space="RELATIVE", as_instance=False,
+            ng,
+            objects=[cave.object for cave in unit],
+            transform_space="RELATIVE",
+            as_instance=False,
             join_multiple=not (group_name is not None and len(unit) > 1),
         )
         unit_nodes = [*source_nodes]
@@ -218,13 +256,22 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
             unit_nodes.append(union)
         material = nodes.new("GeometryNodeSetMaterial")
         material.label = f"Cave Material: {unit[0].ground_material.material_name}"
-        material.inputs["Material"].default_value = material_for(unit[0].ground_material, unit[0].texture_scale)
+        material.inputs["Material"].default_value = material_for(
+            unit[0].ground_material, unit[0].texture_scale
+        )
         links.new(geometry, material.inputs["Geometry"])
         flat = nodes.new("GeometryNodeSetShadeSmooth")
-        flat.label, flat.inputs["Shade Smooth"].default_value = "Keep Cave Faces Flat", False
+        flat.label, flat.inputs["Shade Smooth"].default_value = (
+            "Keep Cave Faces Flat",
+            False,
+        )
         links.new(material.outputs["Geometry"], flat.inputs["Mesh"])
         cutters.append(flat.outputs["Mesh"])
-        label = f"Caves: {group_name}" if group_name is not None else f"Cave: {unit[0].object.name}"
+        label = (
+            f"Caves: {group_name}"
+            if group_name is not None
+            else f"Cave: {unit[0].object.name}"
+        )
         frame = frame_nodes(ng, label, [*unit_nodes, material, flat])
         if frame:
             child_frames.append(frame)
@@ -251,7 +298,14 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
         entry_collection = clear_mineshaft_entries()
         for path in paths:
             if isinstance(path.entry_decoration, MineShaftEntry):
-                create_mineshaft_entry_objects(obj, path.object, path.width, path.height, path.entry_decoration, entry_collection)
+                create_mineshaft_entry_objects(
+                    obj,
+                    path.object,
+                    path.width,
+                    path.height,
+                    path.entry_decoration,
+                    entry_collection,
+                )
     cut_geometry, cleanup_nodes = remove_temporary_solidify_geometry(
         ng,
         cut_geometry,

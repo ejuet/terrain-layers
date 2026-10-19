@@ -4,7 +4,7 @@ import bpy
 from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
-from terrain_layers.shader.material_types import GroundMaterial
+from terrain_layers.shader.material_types import PBRSourceMaterial
 from terrain_layers.tunnels.tunnel_types import MineShaftEntry
 
 
@@ -14,7 +14,7 @@ LEGACY_MINESHAFT_ENTRIES_COLLECTION_NAME = "TerrainTunnelMineshaftEntries"
 
 
 def get_mineshaft_log_material(
-    ground_material: GroundMaterial | None = None,
+    ground_material: PBRSourceMaterial | None = None,
 ) -> bpy.types.Material:
     """Return the configured log material or the simple brown fallback."""
     if ground_material is not None:
@@ -43,7 +43,9 @@ def get_mineshaft_log_material(
 
 
 def clear_mineshaft_entries() -> bpy.types.Collection:
-    legacy_collection = bpy.data.collections.get(LEGACY_MINESHAFT_ENTRIES_COLLECTION_NAME)
+    legacy_collection = bpy.data.collections.get(
+        LEGACY_MINESHAFT_ENTRIES_COLLECTION_NAME
+    )
     if legacy_collection is not None:
         for entry in list(legacy_collection.objects):
             bpy.data.objects.remove(entry, do_unlink=True)
@@ -76,7 +78,14 @@ def _add_cube_log(
         for y in (-half[1], half[1])
         for z in (-half[2], half[2])
     ]
-    faces = [(0, 1, 3, 2), (4, 6, 7, 5), (0, 4, 5, 1), (2, 3, 7, 6), (0, 2, 6, 4), (1, 5, 7, 3)]
+    faces = [
+        (0, 1, 3, 2),
+        (4, 6, 7, 5),
+        (0, 4, 5, 1),
+        (2, 3, 7, 6),
+        (0, 2, 6, 4),
+        (1, 5, 7, 3),
+    ]
     mesh.from_pydata(vertices, [], faces)
     mesh.materials.append(material)
     log = bpy.data.objects.new(name, mesh)
@@ -125,7 +134,9 @@ def create_mineshaft_entry_objects(
             direction = delta / length
             travelled = 1e-5
             while travelled < length - 1e-5:
-                hit = bvh.ray_cast(start + direction * travelled, direction, length - travelled)
+                hit = bvh.ray_cast(
+                    start + direction * travelled, direction, length - travelled
+                )
                 if hit[0] is None:
                     break
                 location = hit[0]
@@ -135,9 +146,14 @@ def create_mineshaft_entry_objects(
                 # portal: there is no path outside the terrain beyond it.
                 # Keep crossings at internal tessellation vertices, but ignore
                 # a hit at the actual end of the path.
-                if hit[3] >= remaining_distance - 1e-4 and vertex_degrees[edge.vertices[1]] == 1:
+                if (
+                    hit[3] >= remaining_distance - 1e-4
+                    and vertex_degrees[edge.vertices[1]] == 1
+                ):
                     break
-                if not any((location - previous[0]).length < 1e-3 for previous in intersections):
+                if not any(
+                    (location - previous[0]).length < 1e-3 for previous in intersections
+                ):
                     intersections.append((location, direction))
                 travelled += hit[3] + 1e-4
     finally:
@@ -175,9 +191,16 @@ def create_mineshaft_entry_objects(
         right_local = local_tangent.cross(up_local)
         corners = [
             surface_point(location + right_local * x + up_local * z, local_tangent)
-            for x, z in ((-tunnel_width / 2, tunnel_height / 2), (-tunnel_width / 2, -tunnel_height / 2), (tunnel_width / 2, tunnel_height / 2), (tunnel_width / 2, -tunnel_height / 2))
+            for x, z in (
+                (-tunnel_width / 2, tunnel_height / 2),
+                (-tunnel_width / 2, -tunnel_height / 2),
+                (tunnel_width / 2, tunnel_height / 2),
+                (tunnel_width / 2, -tunnel_height / 2),
+            )
         ]
-        top_left, bottom_left, top_right, bottom_right = [terrain.matrix_world @ corner for corner in corners]
+        top_left, bottom_left, top_right, bottom_right = [
+            terrain.matrix_world @ corner for corner in corners
+        ]
         top_edge = top_right - top_left
         left_edge = bottom_left - top_left
         portal_normal = top_edge.cross(left_edge)
@@ -194,10 +217,28 @@ def create_mineshaft_entry_objects(
             if right.length < 1e-5:
                 return
             right.normalize()
-            _add_cube_log(collection, name=name, center=(top + bottom) / 2, right=right, forward=portal_normal, up=up, dimensions=(thickness, thickness, (top - bottom).length + thickness), material=material)
+            _add_cube_log(
+                collection,
+                name=name,
+                center=(top + bottom) / 2,
+                right=right,
+                forward=portal_normal,
+                up=up,
+                dimensions=(thickness, thickness, (top - bottom).length + thickness),
+                material=material,
+            )
 
         add_post(f"MineShaft_{index:02d}_Left", top_left, bottom_left)
         add_post(f"MineShaft_{index:02d}_Right", top_right, bottom_right)
         right = top_edge.normalized()
         up = portal_normal.cross(right).normalized()
-        _add_cube_log(collection, name=f"MineShaft_{index:02d}_Lintel", center=(top_left + top_right) / 2, right=right, forward=portal_normal, up=up, dimensions=(top_edge.length + thickness, thickness, thickness), material=material)
+        _add_cube_log(
+            collection,
+            name=f"MineShaft_{index:02d}_Lintel",
+            center=(top_left + top_right) / 2,
+            right=right,
+            forward=portal_normal,
+            up=up,
+            dimensions=(top_edge.length + thickness, thickness, thickness),
+            material=material,
+        )

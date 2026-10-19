@@ -24,7 +24,7 @@ from terrain_layers.biomes.create_scatter_biomes import create_scatter_biomes
 
 from terrain_layers.shader.create_shader import create_terrain_shader
 from terrain_layers.shader.material_types import (
-    GroundMaterial,
+    PBRSourceMaterial,
     UVWarpConfig,
     UVAntiTilingConfig,
 )
@@ -60,7 +60,7 @@ def run():
                 priority=0,
                 strength=1.0,
                 preview_color=PreviewLayerColor.BLUE,
-                ground_material=GroundMaterial(
+                ground_material=PBRSourceMaterial(
                     "Muddy ground with underwater moss",
                     uv_scale=2.0,
                     uv_warp=UVWarpConfig(),
@@ -85,7 +85,7 @@ def run():
                     zone_width=0.35,
                     zone_softness=1.0,
                 ),
-                ground_material=GroundMaterial("Sand"),
+                ground_material=PBRSourceMaterial("Sand"),
                 scatter_biome=ScatterBiome(
                     collection_name="Beach_Objects",
                     density=0.02,
@@ -112,7 +112,7 @@ def run():
                     zone_width=0.5,
                     zone_softness=1.0,
                 ),
-                ground_material=GroundMaterial("Grass"),
+                ground_material=PBRSourceMaterial("Grass"),
                 scatter_biome=ScatterBiome(
                     collection_name="Forest_Trees",
                     density=0.02,
@@ -140,7 +140,7 @@ def run():
                     zone_width=0.3,
                     zone_softness=1.2,
                 ),
-                ground_material=GroundMaterial("Snow"),
+                ground_material=PBRSourceMaterial("Snow"),
             ),
             Layer(
                 name="Rock",
@@ -160,7 +160,7 @@ def run():
                     zone_width=0.4,
                     zone_softness=1.0,
                 ),
-                ground_material=GroundMaterial("Rock"),
+                ground_material=PBRSourceMaterial("Rock"),
             ),
             Layer(
                 name="Volcanos",
@@ -169,7 +169,7 @@ def run():
                 mask=PaintMask(
                     image_name="IMG_Terrain_VolcanosMask",
                 ),
-                ground_material=GroundMaterial("04 Vulcanic Rock Surface D"),
+                ground_material=PBRSourceMaterial("04 Vulcanic Rock Surface D"),
             ),
             Layer(
                 name="Roads",
@@ -199,7 +199,7 @@ def run():
                     ],
                     path_inactive_areas_collection="Path_Inactive_Areas",
                 ),
-                ground_material=GroundMaterial("Sand"),
+                ground_material=PBRSourceMaterial("Sand"),
             ),
         ],
         tunnel_system=TunnelSystem(
@@ -212,7 +212,7 @@ def run():
                     entry_decoration=False,
                 ),
             ),
-            ground_material=GroundMaterial("Rock"),
+            ground_material=PBRSourceMaterial("Rock"),
             caves=(
                 TunnelCave(cave_object_name="Cave", fuse_group="Main Cave"),
                 TunnelCave(cave_object_name="Cave_2", fuse_group="Main Cave"),
@@ -223,7 +223,7 @@ def run():
             shape=TunnelShape.RECTANGLE,
             keep_floor_level=True,
             entry_decoration=MineShaftEntry(
-                ground_material=GroundMaterial("Sand"),
+                ground_material=PBRSourceMaterial("Sand"),
             ),
         ),
     )

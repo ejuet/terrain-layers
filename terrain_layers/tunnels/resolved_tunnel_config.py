@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import bpy
 
 from terrain_layers.paths.path_source import ensure_curve_object
-from terrain_layers.shader.material_types import GroundMaterial
+from terrain_layers.shader.material_types import PBRSourceMaterial
 from terrain_layers.tunnels.tunnel_types import (
     MineShaftEntry,
     TunnelEntryDecoration,
@@ -25,7 +25,7 @@ class ResolvedPath:
     width: float
     height: float
     keep_floor_level: bool
-    ground_material: GroundMaterial
+    ground_material: PBRSourceMaterial
     texture_scale: float
     entry_decoration: TunnelEntryDecoration | None
 
@@ -45,7 +45,7 @@ class ResolvedPath:
 @dataclass(frozen=True, slots=True)
 class ResolvedCave:
     object: bpy.types.Object
-    ground_material: GroundMaterial
+    ground_material: PBRSourceMaterial
     texture_scale: float
     fuse_group: str | None
 
@@ -53,7 +53,9 @@ class ResolvedCave:
 def _ensure_cave_object(cave_object_name: str) -> bpy.types.Object:
     cave = bpy.data.objects.get(cave_object_name)
     if cave is None:
-        raise RuntimeError(f"Tunnel references missing cave object '{cave_object_name}'.")
+        raise RuntimeError(
+            f"Tunnel references missing cave object '{cave_object_name}'."
+        )
     if cave.type != "MESH":
         raise RuntimeError(
             f"Tunnel cave object '{cave_object_name}' must be MESH, got: {cave.type}"
@@ -74,7 +76,9 @@ def resolve_tunnel_system(
 
     def unique(name: str) -> None:
         if name in seen_names:
-            raise ValueError(f"Tunnel system references object '{name}' more than once.")
+            raise ValueError(
+                f"Tunnel system references object '{name}' more than once."
+            )
         seen_names.add(name)
 
     paths: list[ResolvedPath] = []
@@ -129,7 +133,7 @@ def resolve_tunnel_system(
         )
 
     caves: list[ResolvedCave] = []
-    group_settings: dict[str, tuple[GroundMaterial, float]] = {}
+    group_settings: dict[str, tuple[PBRSourceMaterial, float]] = {}
     for cave in system.caves:
         unique(cave.cave_object_name)
         if cave.fuse_group is not None and not cave.fuse_group:

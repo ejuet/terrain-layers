@@ -85,7 +85,7 @@ def _get_layer_preview_color(layer: Layer) -> tuple[float, float, float, float]:
 
     if layer.ground_material is None:
         raise ValueError(
-            f"Layer '{layer.name}' has no preview_color and no GroundMaterial to sample."
+            f"Layer '{layer.name}' has no preview_color and no PBRSourceMaterial to sample."
         )
 
     material_name = layer.ground_material.material_name

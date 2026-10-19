@@ -3,7 +3,7 @@ import math
 
 from terrain_layers.config.config_types import TerrainConfig, Layer
 from terrain_layers.shader.material_types import (
-    GroundMaterial,
+    PBRSourceMaterial,
     UVWarpConfig,
     UVAntiTilingConfig,
 )
@@ -92,7 +92,7 @@ def _make_mix_terrain_layer_group(name="NG_MixTerrainLayer"):
 
 def _make_pbr_layer_group(
     layer_key: str,
-    ground_mat: GroundMaterial,
+    ground_mat: PBRSourceMaterial,
     group_prefix="NG_PBRLayer_",
     image_projection="FLAT",
     image_projection_blend=0.0,
@@ -243,11 +243,11 @@ def _make_pbr_layer_group(
 
 
 def create_ground_material_shader(
-    ground_material: GroundMaterial,
+    ground_material: PBRSourceMaterial,
     shader_name: str,
     texture_scale: float = 0.05,
 ) -> bpy.types.Material:
-    """Create a standalone PBR material from a :class:`GroundMaterial`.
+    """Create a standalone PBR material from a :class:`PBRSourceMaterial`.
 
     Terrain layers share one shader because their masks blend together.  Tunnel
     interiors instead need one unmasked material, so they get this separate
@@ -432,7 +432,7 @@ def create_terrain_shader(config: TerrainConfig):
         layer_frames.append(frame_nodes(nt, f"Layer {layer.name}", [g]))
 
     if not layer_nodes:
-        raise ValueError("No layers had a GroundMaterial.")
+        raise ValueError("No layers had a PBRSourceMaterial.")
 
     ng_mix = bpy.data.node_groups.get(
         "NG_MixTerrainLayer"
@@ -523,18 +523,18 @@ def run():
         layers=[
             Layer(
                 name="Underwater",
-                ground_material=GroundMaterial(
+                ground_material=PBRSourceMaterial(
                     "Muddy ground with underwater moss",
                     uv_scale=2.0,
                     uv_warp=UVWarpConfig(),
                     uv_anti_tiling=UVAntiTilingConfig(),
                 ),
             ),
-            Layer(name="Beach", ground_material=GroundMaterial("Sand")),
-            Layer(name="Sand Painted", ground_material=GroundMaterial("Sand")),
-            Layer(name="Grass", ground_material=GroundMaterial("Grass")),
-            Layer(name="Rock", ground_material=GroundMaterial("Rock")),
-            Layer(name="Snow", ground_material=GroundMaterial("Snow")),
+            Layer(name="Beach", ground_material=PBRSourceMaterial("Sand")),
+            Layer(name="Sand Painted", ground_material=PBRSourceMaterial("Sand")),
+            Layer(name="Grass", ground_material=PBRSourceMaterial("Grass")),
+            Layer(name="Rock", ground_material=PBRSourceMaterial("Rock")),
+            Layer(name="Snow", ground_material=PBRSourceMaterial("Snow")),
         ],
     )
     create_terrain_shader(config)

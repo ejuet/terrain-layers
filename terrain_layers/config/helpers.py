@@ -1,4 +1,5 @@
 from terrain_layers.config.config_types import Layer, TerrainConfig
+from terrain_layers.masks.mask_types.scatter_footprint import ScatterFootprintMask
 
 
 def sort_layers_by_priority(layers: list[Layer]) -> list[Layer]:
@@ -37,4 +38,27 @@ def validate_terrain_config(config: TerrainConfig) -> None:
             raise ValueError(
                 f"Scatter biome '{biome.id}' references unknown eligibility layer "
                 f"'{biome.eligibility_layer_name}'."
+            )
+
+    biomes_by_id = {biome.id: biome for biome in config.scatter_biomes}
+    layers_by_name = {layer.name: layer for layer in config.layers}
+    for layer in config.layers:
+        if not isinstance(layer.mask, ScatterFootprintMask):
+            continue
+        footprint = layer.mask
+        if footprint.scatter_biome_id not in biomes_by_id:
+            raise ValueError(
+                f"Layer '{layer.name}' references unknown scatter biome "
+                f"'{footprint.scatter_biome_id}'."
+            )
+        if footprint.inner_radius < 0 or footprint.outer_radius <= footprint.inner_radius:
+            raise ValueError(
+                f"Layer '{layer.name}' needs 0 <= inner_radius < outer_radius."
+            )
+        biome = biomes_by_id[footprint.scatter_biome_id]
+        eligibility_layer = layers_by_name[biome.eligibility_layer_name]
+        if isinstance(eligibility_layer.mask, ScatterFootprintMask):
+            raise ValueError(
+                f"Scatter biome '{biome.id}' cannot use footprint layer "
+                f"'{eligibility_layer.name}' as its eligibility layer."
             )

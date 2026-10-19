@@ -7,6 +7,7 @@ from terrain_layers.config.config_types import (
 from terrain_layers.masks.mask_types.height import HeightMask
 from terrain_layers.masks.mask_types.slope import SlopeMask
 from terrain_layers.masks.mask_types.paint import PaintMask
+from terrain_layers.masks.mask_types.scatter_footprint import ScatterFootprintMask
 from terrain_layers.masks.mask_types.path import (
     RoadNetworkMask,
     RoadNetworkPath,
@@ -107,6 +108,19 @@ def run():
                     zone_softness=1.0,
                 ),
                 pbr_source=PBRSourceMaterial("Grass"),
+            ),
+            Layer(
+                name="Tree Soil",
+                priority=21,
+                strength=1.0,
+                mask=ScatterFootprintMask(
+                    scatter_biome_id="forest_trees",
+                    inner_radius=0.8,
+                    outer_radius=1.8,
+                ),
+                # Temporary high-contrast material for validating the mask.
+                pbr_source=PBRSourceMaterial("Rock"),
+                preview_color=PreviewLayerColor.PINK,
             ),
             Layer(
                 name="Snow",

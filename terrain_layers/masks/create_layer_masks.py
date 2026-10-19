@@ -8,6 +8,8 @@ from terrain_layers.utility.geo_nodes import (
 )
 from terrain_layers.utility.rearrange import arrange_nodes
 from terrain_layers.utility.nodes import (
+    gn_clamp_0_1,
+    gn_math_multiply,
     gn_value_float,
 )
 from terrain_layers.utility.frame_nodes import frame_nodes
@@ -20,6 +22,10 @@ from terrain_layers.masks.mask_types.path import (
     RoadNetworkMask,
     add_road_network_mask_node,
 )
+from terrain_layers.masks.mask_types.scatter_footprint import (
+    ScatterFootprintMask,
+    add_scatter_footprint_mask_node,
+)
 from terrain_layers.masks.noise import (
     DualNoiseConfig,
     MaskNoiseConfig,
@@ -31,7 +37,8 @@ from terrain_layers.masks.priority_resolving import add_priority_resolve_node
 from terrain_layers.config.config_types import Layer, TerrainConfig
 from terrain_layers.config.helpers import sort_layers_by_priority, validate_terrain_config
 from terrain_layers.biomes.create_scatter_biomes import (
-    add_scatter_biome_nodes,
+    add_scatter_payload_and_join,
+    add_scatter_point_distribution,
     tunnel_interior_materials,
     validate_scatter_collections,
 )
@@ -46,6 +53,70 @@ def no_mask(nt) -> tuple[MaskSocket, list[Node]]:
     outp = gn_value_float(nt, 1.0, label="RawMask:Full")
     node_of_outp = outp.node
     return outp, [node_of_outp]
+
+
+def add_raw_layer_mask(
+    ng: bpy.types.NodeTree,
+    *,
+    layer: Layer,
+    obj: bpy.types.Object,
+    terrain_socket: bpy.types.NodeSocket,
+    dual_to_attr: dict[DualNoiseConfig, str],
+) -> tuple[MaskSocket, list[Node]]:
+    """Build a static layer mask before it participates in priority resolution."""
+    if isinstance(layer.mask, HeightMask):
+        mask, nodes = add_height_mask_node(ng, layer.mask)
+    elif isinstance(layer.mask, SlopeMask):
+        mask, nodes = add_slope_mask_node(ng, layer.mask)
+    elif isinstance(layer.mask, PaintMask):
+        mask, nodes = add_paint_mask_node(ng, layer.mask, obj=obj)
+    elif isinstance(layer.mask, RoadNetworkMask):
+        mask, nodes = add_road_network_mask_node(
+            ng,
+            layer.mask,
+            terrain_socket=terrain_socket,
+        )
+    elif isinstance(layer.mask, ScatterFootprintMask):
+        raise ValueError("Scatter footprint masks require generated scatter points.")
+    else:
+        mask, nodes = no_mask(ng)
+
+    if layer.mask_noise is not None:
+        attr = dual_to_attr[layer.mask_noise.dual]
+        mask, noise_nodes = add_apply_mask_noise_from_attribute(
+            ng,
+            base_mask=mask,
+            noise=layer.mask_noise,
+            attr_name=attr,
+        )
+        nodes.extend(noise_nodes)
+    return mask, nodes
+
+
+def add_provisional_eligibility_mask(
+    ng: bpy.types.NodeTree,
+    *,
+    layer: Layer,
+    raw_mask: MaskSocket,
+    remaining: MaskSocket,
+) -> tuple[MaskSocket, list[Node]]:
+    """Evaluate an eligibility layer against area claimed by higher priorities."""
+    strength = gn_value_float(
+        ng, layer.strength, label=f"EligibilityStrength:{layer.name}"
+    )
+    weighted = gn_math_multiply(
+        ng, raw_mask, strength, label=f"EligibilityWeighted:{layer.name}"
+    )
+    clamped = gn_clamp_0_1(ng, weighted, label=f"EligibilityClamp:{layer.name}")
+    eligible = gn_math_multiply(
+        ng, clamped, remaining, label=f"Eligibility:{layer.name}"
+    )
+    frame = frame_nodes(
+        ng,
+        f"Provisional Eligibility: {layer.name}",
+        [strength.node, weighted.node, clamped.node, eligible.node],
+    )
+    return eligible, [frame] if frame is not None else []
 
 
 def create_terrain_layers(config: TerrainConfig):
@@ -94,41 +165,58 @@ def create_terrain_layers(config: TerrainConfig):
         ng,
     )
 
-    frames = []
-    # Retain sockets as well as storing named attributes. The explicit socket
-    # boundary lets a future priority-aware compiler supply provisional
-    # eligibility before a lower-priority layer is finalized.
-    resolved_layer_masks: dict[str, MaskSocket] = {}
+    terrain_geo = prev_geo
+    raw_masks: dict[str, MaskSocket] = {}
+    raw_mask_nodes: dict[str, list[Node]] = {}
     for layer in layers_sorted:
-        layer_nodes = []
+        if isinstance(layer.mask, ScatterFootprintMask):
+            continue
+        raw_masks[layer.name], raw_mask_nodes[layer.name] = add_raw_layer_mask(
+            ng,
+            layer=layer,
+            obj=obj,
+            terrain_socket=terrain_geo,
+            dual_to_attr=dual_to_attr,
+        )
 
-        # Raw mask
-        if isinstance(layer.mask, HeightMask):
-            mask, new_nodes = add_height_mask_node(ng, layer.mask)
-        elif isinstance(layer.mask, SlopeMask):
-            mask, new_nodes = add_slope_mask_node(ng, layer.mask)
-        elif isinstance(layer.mask, PaintMask):
-            mask, new_nodes = add_paint_mask_node(ng, layer.mask, obj=obj)
-        elif isinstance(layer.mask, RoadNetworkMask):
-            mask, new_nodes = add_road_network_mask_node(
+    resolved_layer_masks: dict[str, MaskSocket] = {}
+    scatter_points: dict[str, bpy.types.NodeSocket] = {}
+    scatter_biomes_by_id = {biome.id: biome for biome in config.scatter_biomes}
+    layers_by_name = {layer.name: layer for layer in config.layers}
+    interior_materials = tunnel_interior_materials()
+    for layer in layers_sorted:
+        if isinstance(layer.mask, ScatterFootprintMask):
+            footprint = layer.mask
+            biome = scatter_biomes_by_id[footprint.scatter_biome_id]
+            layer_nodes = []
+            if biome.id not in scatter_points:
+                eligibility_layer = layers_by_name[biome.eligibility_layer_name]
+                eligibility, eligibility_nodes = add_provisional_eligibility_mask(
+                    ng,
+                    layer=eligibility_layer,
+                    raw_mask=raw_masks[eligibility_layer.name],
+                    remaining=remaining,
+                )
+                points, _ = add_scatter_point_distribution(
+                    ng,
+                    biome=biome,
+                    source_geo=terrain_geo,
+                    eligibility_mask=eligibility,
+                    interior_materials=interior_materials,
+                )
+                scatter_points[biome.id] = points
+                # Keep the biome's spawn frame top-level. The Soil layer owns
+                # only the footprint calculation that consumes those points.
+                layer_nodes.extend(eligibility_nodes)
+            mask, footprint_nodes = add_scatter_footprint_mask_node(
                 ng,
-                layer.mask,
-                terrain_socket=prev_geo,
+                footprint,
+                points=scatter_points[biome.id],
             )
+            layer_nodes.extend(footprint_nodes)
         else:
-            mask, new_nodes = no_mask(ng)
-        layer_nodes.extend(new_nodes)
-
-        # Optional mask noise: pick attribute based on layer.mask_noise.dual
-        if layer.mask_noise is not None:
-            attr = dual_to_attr[layer.mask_noise.dual]
-            mask, noise_nodes = add_apply_mask_noise_from_attribute(
-                ng,
-                base_mask=mask,
-                noise=layer.mask_noise,
-                attr_name=attr,
-            )
-            layer_nodes.extend(noise_nodes)
+            mask = raw_masks[layer.name]
+            layer_nodes = list(raw_mask_nodes[layer.name])
 
         # Resolve priority via node group
         actual, remaining, node = add_priority_resolve_node(
@@ -152,34 +240,28 @@ def create_terrain_layers(config: TerrainConfig):
         prev_geo = store.outputs["Geometry"]
         resolved_layer_masks[layer.name] = actual
 
-        # Frame the layer nodes
-        frame = frame_nodes(ng, f"Layer: {layer.name}", layer_nodes)
-        frames.append(frame)
+        # Keep layer frames flat; the node links express cross-layer dependencies.
+        frame_nodes(ng, layer.name, layer_nodes)
 
-    layer_frame = frame_nodes(ng, "Terrain Layers", frames)
-
-    # Scatter uses the resolved mask socket directly rather than looking up a
-    # stored attribute. Point distribution remains separate from payload
-    # instancing so future priority-aware scheduling can create the points at a
-    # footprint layer's position and reuse them for payload instancing.
+    # Footprint users already have priority-positioned point branches. All
+    # other biomes keep the previous behavior and use final resolved masks.
     resolved_terrain_geo = prev_geo
-    biome_frames = []
-    interior_materials = tunnel_interior_materials()
     for biome in config.scatter_biomes:
-        biome_build = add_scatter_biome_nodes(
+        if biome.id not in scatter_points:
+            points, _ = add_scatter_point_distribution(
+                ng,
+                biome=biome,
+                source_geo=resolved_terrain_geo,
+                eligibility_mask=resolved_layer_masks[biome.eligibility_layer_name],
+                interior_materials=interior_materials,
+            )
+            scatter_points[biome.id] = points
+        prev_geo, _ = add_scatter_payload_and_join(
             ng,
             biome=biome,
-            source_geo=resolved_terrain_geo,
+            points=scatter_points[biome.id],
             prev_geo=prev_geo,
-            eligibility_mask=resolved_layer_masks[biome.eligibility_layer_name],
-            interior_materials=interior_materials,
         )
-        prev_geo = biome_build.geometry
-        biome_frames.append(biome_build.frame)
-    if biome_frames:
-        scatter_frame = frame_nodes(ng, "Scatter Biomes", biome_frames)
-        if layer_frame is not None and scatter_frame is not None:
-            frame_nodes(ng, "Terrain Features", [layer_frame, scatter_frame])
 
     links.new(prev_geo, gout.inputs["Geometry"])
 

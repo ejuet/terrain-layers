@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import bpy
 
 from terrain_layers.config.config_types import ScatterBiome
@@ -16,20 +14,6 @@ from terrain_layers.utility.object_info_group import create_object_info_group
 def _safe_key(value: str) -> str:
     value = (value or "").strip()
     return "".join(c if (c.isalnum() or c in "_-") else "_" for c in value) or "Biome"
-
-
-@dataclass(frozen=True, slots=True)
-class ScatterBiomeBuild:
-    """Node outputs retained for a biome inside the terrain-feature graph.
-
-    ``points`` deliberately remains available independently of the rendered
-    instances. A future scatter-footprint layer can consume these points at
-    its priority position, then reuse them for payload instancing later.
-    """
-
-    points: bpy.types.NodeSocket
-    geometry: bpy.types.NodeSocket
-    frame: bpy.types.Node
 
 
 def _payload_group_name(biome: ScatterBiome) -> str:
@@ -144,7 +128,7 @@ def add_scatter_point_distribution(
         links.new(exterior, distribute.inputs["Selection"])
     return distribute.outputs["Points"], frame_nodes(
         ng,
-        "Point Distribution",
+        f"{biome.id} Spawn Point Distribution",
         [density.node, clamp, masked_density.node, distribute, *selection_nodes],
     )
 
@@ -188,33 +172,7 @@ def add_scatter_payload_and_join(
     links.new(prev_geo, join.inputs["Geometry"])
     links.new(instance.outputs["Instances"], join.inputs["Geometry"])
     return join.outputs["Geometry"], frame_nodes(
-        ng, "Payload & Join", [payload, instance, *scale_nodes, join]
-    )
-
-
-def add_scatter_biome_nodes(
-    ng: bpy.types.NodeTree,
-    *,
-    biome: ScatterBiome,
-    source_geo: bpy.types.NodeSocket,
-    prev_geo: bpy.types.NodeSocket,
-    eligibility_mask: MaskSocket,
-    interior_materials: list[bpy.types.Material],
-) -> ScatterBiomeBuild:
-    """Add one standalone biome to the unified terrain-feature graph."""
-    points, points_frame = add_scatter_point_distribution(
         ng,
-        biome=biome,
-        source_geo=source_geo,
-        eligibility_mask=eligibility_mask,
-        interior_materials=interior_materials,
+        f"{biome.id} Scatter Objects",
+        [payload, instance, *scale_nodes, join],
     )
-    result, payload_frame = add_scatter_payload_and_join(
-        ng, biome=biome, points=points, prev_geo=prev_geo
-    )
-    frame = frame_nodes(
-        ng,
-        f"Scatter: {biome.id} ({biome.collection_name})",
-        [points_frame, payload_frame],
-    )
-    return ScatterBiomeBuild(points=points, geometry=result, frame=frame)

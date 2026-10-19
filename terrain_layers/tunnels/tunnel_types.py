@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from terrain_layers.shader.material_types import PBRSourceMaterial
+from terrain_layers.shader.material_types import PBRMaterialSource
 
 
 # Identifies materials assigned to faces created by a tunnel/cave boolean.
@@ -31,7 +31,7 @@ class MineShaftEntry(TunnelEntryDecoration):
     log_thickness: float = 0.3
     # When set, the logs use this PBR material instead of the fallback brown
     # material. For example, this can point at a wood texture set.
-    ground_material: PBRSourceMaterial | None = None
+    ground_material: PBRMaterialSource | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,7 +44,7 @@ class TunnelPath:
     """
 
     curve_object_name: str
-    ground_material: PBRSourceMaterial | None = None
+    ground_material: PBRMaterialSource | None = None
     texture_scale: float | None = None
     radius: float | None = None
     shape: TunnelShape | None = None
@@ -59,7 +59,7 @@ class TunnelCave:
     """One mesh volume excavated by a :class:`TunnelSystem`."""
 
     cave_object_name: str
-    ground_material: PBRSourceMaterial | None = None
+    ground_material: PBRMaterialSource | None = None
     texture_scale: float | None = None
     fuse_group: str | None = None
 
@@ -69,7 +69,7 @@ class TunnelSystem:
     """Tunnel defaults plus independently configurable path and cave cuts."""
 
     paths: tuple[TunnelPath, ...]
-    ground_material: PBRSourceMaterial
+    ground_material: PBRMaterialSource
     caves: tuple[TunnelCave, ...] = ()
     # Object-space texture repetitions per Blender unit.
     texture_scale: float = 0.05

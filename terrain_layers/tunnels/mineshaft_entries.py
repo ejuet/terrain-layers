@@ -4,7 +4,7 @@ import bpy
 from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
-from terrain_layers.shader.material_types import PBRSourceMaterial
+from terrain_layers.shader.material_types import PBRMaterialSource
 from terrain_layers.tunnels.tunnel_types import MineShaftEntry
 
 
@@ -14,7 +14,7 @@ LEGACY_MINESHAFT_ENTRIES_COLLECTION_NAME = "TerrainTunnelMineshaftEntries"
 
 
 def get_mineshaft_log_material(
-    ground_material: PBRSourceMaterial | None = None,
+    ground_material: PBRMaterialSource | None = None,
 ) -> bpy.types.Material:
     """Return the configured log material or the simple brown fallback."""
     if ground_material is not None:

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 import bpy
 
 from terrain_layers.paths.path_source import ensure_curve_object
-from terrain_layers.shader.material_types import PBRSourceMaterial
+from terrain_layers.shader.material_types import PBRMaterialSource
 from terrain_layers.tunnels.tunnel_types import (
     MineShaftEntry,
     TunnelEntryDecoration,
@@ -25,7 +25,7 @@ class ResolvedPath:
     width: float
     height: float
     keep_floor_level: bool
-    ground_material: PBRSourceMaterial
+    ground_material: PBRMaterialSource
     texture_scale: float
     entry_decoration: TunnelEntryDecoration | None
 
@@ -45,7 +45,7 @@ class ResolvedPath:
 @dataclass(frozen=True, slots=True)
 class ResolvedCave:
     object: bpy.types.Object
-    ground_material: PBRSourceMaterial
+    ground_material: PBRMaterialSource
     texture_scale: float
     fuse_group: str | None
 
@@ -133,7 +133,7 @@ def resolve_tunnel_system(
         )
 
     caves: list[ResolvedCave] = []
-    group_settings: dict[str, tuple[PBRSourceMaterial, float]] = {}
+    group_settings: dict[str, tuple[PBRMaterialSource, float]] = {}
     for cave in system.caves:
         unique(cave.cave_object_name)
         if cave.fuse_group is not None and not cave.fuse_group:

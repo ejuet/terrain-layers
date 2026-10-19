@@ -3,11 +3,11 @@ import math
 
 from terrain_layers.config.config_types import TerrainConfig, Layer
 from terrain_layers.shader.material_types import (
+    PBRMaterialSource,
     PBRSourceMaterial,
     UVWarpConfig,
     UVAntiTilingConfig,
 )
-from terrain_layers.shader.get_texture_image import get_material_pbr_images
 from terrain_layers.utility.geo_nodes import get_terrain_object
 from terrain_layers.shader.anti_repetition.uv_warp import ensure_pbr_warped_uv_group
 from terrain_layers.shader.anti_repetition.anti_tile import (
@@ -92,12 +92,12 @@ def _make_mix_terrain_layer_group(name="NG_MixTerrainLayer"):
 
 def _make_pbr_layer_group(
     layer_key: str,
-    ground_mat: PBRSourceMaterial,
+    ground_mat: PBRMaterialSource,
     group_prefix="NG_PBRLayer_",
     image_projection="FLAT",
     image_projection_blend=0.0,
 ):
-    images = get_material_pbr_images(ground_mat.material_name)
+    images = ground_mat.resolve_images()
     build_warp = ground_mat.uv_warp is not None
     build_antitile = ground_mat.uv_anti_tiling is not None
     name = (
@@ -243,11 +243,11 @@ def _make_pbr_layer_group(
 
 
 def create_ground_material_shader(
-    ground_material: PBRSourceMaterial,
+    ground_material: PBRMaterialSource,
     shader_name: str,
     texture_scale: float = 0.05,
 ) -> bpy.types.Material:
-    """Create a standalone PBR material from a :class:`PBRSourceMaterial`.
+    """Create a standalone PBR material from a :class:`PBRMaterialSource`.
 
     Terrain layers share one shader because their masks blend together.  Tunnel
     interiors instead need one unmasked material, so they get this separate
@@ -284,7 +284,7 @@ def create_ground_material_shader(
         image_projection="BOX",
         image_projection_blend=0.15,
     )
-    pbr.label = f"Tunnel: {ground_material.material_name}"
+    pbr.label = f"Tunnel: {ground_material.display_name}"
     links.new(mapping.outputs["Vector"], pbr.inputs["Vector"])
     pbr.inputs["UV Scale"].default_value = float(ground_material.uv_scale)
     pbr.inputs["Normal Strength"].default_value = 1.0
@@ -432,7 +432,7 @@ def create_terrain_shader(config: TerrainConfig):
         layer_frames.append(frame_nodes(nt, f"Layer {layer.name}", [g]))
 
     if not layer_nodes:
-        raise ValueError("No layers had a PBRSourceMaterial.")
+        raise ValueError("No layers had a PBR material source.")
 
     ng_mix = bpy.data.node_groups.get(
         "NG_MixTerrainLayer"

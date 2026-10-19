@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 import bpy
 
-from terrain_layers.shader.material_types import PBRSourceMaterial
+from terrain_layers.shader.material_types import PBRMaterialSource
 from terrain_layers.tunnels.create_tunnel_path_cutter import (
     create_tunnel_path_cutter_group,
 )
@@ -138,10 +138,10 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
     # Import lazily to avoid a configuration <-> tunnel module import cycle.
     from terrain_layers.shader.create_shader import create_ground_material_shader
 
-    material_cache: dict[tuple[PBRSourceMaterial, float], bpy.types.Material] = {}
+    material_cache: dict[tuple[PBRMaterialSource, float], bpy.types.Material] = {}
 
     def material_for(
-        material: PBRSourceMaterial, texture_scale: float
+        material: PBRMaterialSource, texture_scale: float
     ) -> bpy.types.Material:
         key = (material, texture_scale)
         if key not in material_cache:
@@ -197,7 +197,7 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
             batch_nodes.extend((value, clearance))
         material_cutter = nodes.new("GeometryNodeSetMaterial")
         material_cutter.label = (
-            f"Tunnel Material: {first.ground_material.material_name}"
+            f"Tunnel Material: {first.ground_material.display_name}"
         )
         material_cutter.inputs["Material"].default_value = material_for(
             first.ground_material, first.texture_scale
@@ -255,7 +255,7 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
             geometry = union.outputs["Mesh"]
             unit_nodes.append(union)
         material = nodes.new("GeometryNodeSetMaterial")
-        material.label = f"Cave Material: {unit[0].ground_material.material_name}"
+        material.label = f"Cave Material: {unit[0].ground_material.display_name}"
         material.inputs["Material"].default_value = material_for(
             unit[0].ground_material, unit[0].texture_scale
         )

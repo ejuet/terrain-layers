@@ -25,6 +25,7 @@ from terrain_layers.biomes.create_scatter_biomes import create_scatter_biomes
 from terrain_layers.shader.create_shader import create_terrain_shader
 from terrain_layers.shader.material_types import (
     PBRSourceMaterial,
+    PBRTextureSet,
     UVWarpConfig,
     UVAntiTilingConfig,
 )
@@ -223,7 +224,14 @@ def run():
             shape=TunnelShape.RECTANGLE,
             keep_floor_level=True,
             entry_decoration=MineShaftEntry(
-                ground_material=PBRSourceMaterial("Sand"),
+                ground_material=PBRTextureSet(
+                    name="Bark",
+                    base_color="//bark_texture/diffuse.jpg",
+                    normal="//bark_texture/normal.exr",
+                    roughness="//bark_texture/roughness.exr",
+                    displacement="//bark_texture/displacement.png",
+                    uv_scale=8.0,
+                ),
             ),
         ),
     )

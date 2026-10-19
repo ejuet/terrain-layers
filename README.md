@@ -165,7 +165,7 @@ The script uses Geometry Nodes to calculate the masks for each terrain layer bas
 
 ### Shader
 
-The addon automatically generates a shader that blends the different terrain layers based on their calculated masks. Each layer's ground material is combined using Mix Shader nodes, controlled by the respective mask attributes.
+The addon automatically generates a shader that blends the different terrain layers based on their calculated masks. It combines each source's PBR image maps in one generated terrain material, controlled by the respective mask attributes.
 
 <img src="example_images/shader.png" alt="Shader" max-width="600px"/>
 

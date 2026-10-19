@@ -2,7 +2,6 @@ import bpy
 from array import array
 
 from terrain_layers.config.config_types import Layer, PreviewLayerColor, TerrainConfig
-from terrain_layers.shader.get_texture_image import get_material_image_for_property
 from terrain_layers.utility.geo_nodes import get_terrain_object
 
 _PREVIEW_COLOR_VALUES: dict[PreviewLayerColor, tuple[float, float, float, float]] = {
@@ -22,7 +21,7 @@ _PREVIEW_COLOR_VALUES: dict[PreviewLayerColor, tuple[float, float, float, float]
     PreviewLayerColor.WHITE: (0.92, 0.92, 0.92, 1.0),
 }
 
-_MATERIAL_PREVIEW_COLOR_CACHE: dict[str, tuple[float, float, float, float]] = {}
+_MATERIAL_PREVIEW_COLOR_CACHE: dict[int, tuple[float, float, float, float]] = {}
 
 
 def _resolve_preview_color(color: PreviewLayerColor | str) -> PreviewLayerColor:
@@ -85,26 +84,24 @@ def _get_layer_preview_color(layer: Layer) -> tuple[float, float, float, float]:
 
     if layer.ground_material is None:
         raise ValueError(
-            f"Layer '{layer.name}' has no preview_color and no PBRSourceMaterial to sample."
+            f"Layer '{layer.name}' has no preview_color and no PBR material source to sample."
         )
 
-    material_name = layer.ground_material.material_name
-    cached_color = _MATERIAL_PREVIEW_COLOR_CACHE.get(material_name)
+    source = layer.ground_material
+    cache_key = id(source)
+    cached_color = _MATERIAL_PREVIEW_COLOR_CACHE.get(cache_key)
     if cached_color is not None:
         return cached_color
 
-    image = get_material_image_for_property(
-        material_name,
-        "base_color",
-    )
+    image = source.resolve_images().base_color
     if image is None:
         raise ValueError(
             f"Layer '{layer.name}' has no preview_color and material "
-            f"'{material_name}' has no base color image."
+            f"'{source.display_name}' has no base color image."
         )
 
     average_color = _average_image_color(image)
-    _MATERIAL_PREVIEW_COLOR_CACHE[material_name] = average_color
+    _MATERIAL_PREVIEW_COLOR_CACHE[cache_key] = average_color
     return average_color
 
 

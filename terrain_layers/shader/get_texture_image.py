@@ -1,3 +1,5 @@
+import os
+
 import bpy
 from typing import Optional, Dict, Tuple, Set, List
 from dataclasses import dataclass
@@ -305,6 +307,38 @@ class MaterialPBRImages:
     roughness: Optional[bpy.types.Image]
     normal: Optional[bpy.types.Image]
     displacement: Optional[bpy.types.Image]
+
+
+def _load_image(path: str | None, map_name: str) -> Optional[bpy.types.Image]:
+    """Load one PBR map, resolving Blender-relative paths before lookup."""
+    if path is None:
+        return None
+    resolved_path = bpy.path.abspath(path)
+    if not os.path.isfile(resolved_path):
+        raise FileNotFoundError(
+            f"{map_name} texture was not found: '{path}' "
+            f"(resolved to '{resolved_path}')."
+        )
+    image = bpy.data.images.load(resolved_path, check_existing=True)
+    if image is None:
+        raise RuntimeError(f"Could not load {map_name} texture '{resolved_path}'.")
+    return image
+
+
+def load_pbr_texture_set(
+    *,
+    base_color: str | None = None,
+    roughness: str | None = None,
+    normal: str | None = None,
+    displacement: str | None = None,
+) -> MaterialPBRImages:
+    """Load an on-disk PBR texture set into Blender image datablocks."""
+    return MaterialPBRImages(
+        base_color=_load_image(base_color, "Base color"),
+        roughness=_load_image(roughness, "Roughness"),
+        normal=_load_image(normal, "Normal"),
+        displacement=_load_image(displacement, "Displacement"),
+    )
 
 
 def get_material_pbr_images(

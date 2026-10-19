@@ -73,6 +73,9 @@ class TunnelSystem:
     shape: TunnelShape = TunnelShape.CIRCLE
     width: float = 2.0
     height: float = 2.0
+    # Depth of the closed terrain volume created before tunnel and cave cuts.
+    # Increase this when cutters extend farther below the terrain surface.
+    solidify_depth: float = 100.0
     # For rectangular tunnels, orient the profile from world Z instead of
     # following the curve's roll, so its floor stays parallel to the XY plane.
     keep_floor_level: bool = False

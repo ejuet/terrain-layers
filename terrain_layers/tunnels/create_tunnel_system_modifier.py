@@ -34,6 +34,7 @@ MINE_SHAFT_LOG_MATERIAL_NAME = "TerrainTunnelMineShaftLog"
 MINE_SHAFT_ENTRIES_COLLECTION_NAME = "TerrainTunnelMineShaftEntries"
 LEGACY_MINESHAFT_ENTRIES_COLLECTION_NAME = "TerrainTunnelMineshaftEntries"
 _PREVIOUS_SYSTEM_MODIFIER_NAME = "Terrain_Tunnel_Entrypoints"
+_TEMPORARY_SOLIDIFY_MATERIAL_NAME = "TerrainTemporarySolidify"
 
 
 def _get_mineshaft_log_material(
@@ -62,6 +63,13 @@ def _get_mineshaft_log_material(
     principled.inputs["Base Color"].default_value = (0.20, 0.105, 0.045, 1.0)
     principled.inputs["Roughness"].default_value = 0.8
     links.new(principled.outputs["BSDF"], output.inputs["Surface"])
+    return material
+
+
+def _get_temporary_solidify_material() -> bpy.types.Material:
+    material = bpy.data.materials.get(_TEMPORARY_SOLIDIFY_MATERIAL_NAME)
+    if material is None:
+        material = bpy.data.materials.new(_TEMPORARY_SOLIDIFY_MATERIAL_NAME)
     return material
 
 
@@ -429,18 +437,20 @@ def _ensure_cave_object(cave_object_name: str) -> bpy.types.Object:
     return cave
 
 
-def _configure_exact_boolean(
+def _configure_boolean(
     node: bpy.types.Node,
     operation: str,
     *,
     self_intersection: bool = True,
+    solver: str = "EXACT",
+    hole_tolerant: bool = False,
 ) -> None:
     try:
         node.operation = operation
     except Exception:
         pass
     try:
-        node.solver = "EXACT"
+        node.solver = solver
     except Exception:
         pass
     if hasattr(node, "self_intersection"):
@@ -448,6 +458,9 @@ def _configure_exact_boolean(
             node.self_intersection = self_intersection
         except Exception:
             pass
+    hole_tolerant_input = node.inputs.get("Hole Tolerant")
+    if hole_tolerant_input is not None:
+        hole_tolerant_input.default_value = hole_tolerant
 
 
 @dataclass(frozen=True, slots=True)
@@ -491,6 +504,8 @@ def _resolve_tunnel_system(
     system = config.tunnel_system
     if system is None:
         return [], []
+    if system.solidify_depth <= 0:
+        raise ValueError("Tunnel system solidify_depth must be positive.")
 
     seen_names: set[str] = set()
 
@@ -579,6 +594,155 @@ def _resolve_tunnel_system(
     return paths, caves
 
 
+def _solidify_terrain(
+    ng: bpy.types.GeometryNodeTree,
+    geometry: bpy.types.NodeSocket,
+    depth: float,
+    temporary_material: bpy.types.Material,
+) -> tuple[bpy.types.NodeSocket, list[bpy.types.Node]]:
+    """Close the terrain surface with a volume extending below it.
+
+    Mesh booleans need a closed first operand.  A terrain is normally only a
+    surface, so cutters that fall below its lowest point would otherwise have
+    no volume to subtract from.
+    """
+    # Extrude Mesh replaces the selected top faces with the offset faces. Keep
+    # the input terrain separately, then join and weld it to the generated
+    # bottom and perimeter so the visible terrain never moves.
+    bounds = ng.nodes.new("GeometryNodeBoundBox")
+    bounds.label = "Terrain Bounds"
+    ng.links.new(geometry, bounds.inputs["Geometry"])
+    minimum = ng.nodes.new("ShaderNodeSeparateXYZ")
+    minimum.label = "Terrain Minimum"
+    ng.links.new(bounds.outputs["Min"], minimum.inputs["Vector"])
+    maximum = ng.nodes.new("ShaderNodeSeparateXYZ")
+    maximum.label = "Terrain Maximum"
+    ng.links.new(bounds.outputs["Max"], maximum.inputs["Vector"])
+    height = ng.nodes.new("ShaderNodeMath")
+    height.label = "Terrain Height"
+    height.operation = "SUBTRACT"
+    ng.links.new(maximum.outputs["Z"], height.inputs[0])
+    ng.links.new(minimum.outputs["Z"], height.inputs[1])
+    extrusion_depth = ng.nodes.new("ShaderNodeMath")
+    extrusion_depth.label = "Solidify Extrusion Depth"
+    extrusion_depth.operation = "ADD"
+    extrusion_depth.inputs[1].default_value = depth
+    ng.links.new(height.outputs["Value"], extrusion_depth.inputs[0])
+    downward_depth = ng.nodes.new("ShaderNodeMath")
+    downward_depth.label = "Downward Extrusion"
+    downward_depth.operation = "MULTIPLY"
+    downward_depth.inputs[1].default_value = -1.0
+    ng.links.new(extrusion_depth.outputs["Value"], downward_depth.inputs[0])
+    extrusion_offset = ng.nodes.new("ShaderNodeCombineXYZ")
+    ng.links.new(downward_depth.outputs["Value"], extrusion_offset.inputs["Z"])
+
+    extrude = ng.nodes.new("GeometryNodeExtrudeMesh")
+    extrude.label = "Solidify Terrain"
+    extrude.inputs["Selection"].default_value = True
+    extrude.inputs["Individual"].default_value = False
+    ng.links.new(geometry, extrude.inputs["Mesh"])
+    ng.links.new(extrusion_offset.outputs["Vector"], extrude.inputs["Offset"])
+
+    # Only the vertices generated at the bottom are below the original
+    # terrain's minimum Z. Put those on a single plane to avoid a serrated
+    # lower rim without altering the original terrain or the side-wall tops.
+    position = ng.nodes.new("GeometryNodeInputPosition")
+    position_xyz = ng.nodes.new("ShaderNodeSeparateXYZ")
+    ng.links.new(position.outputs["Position"], position_xyz.inputs["Vector"])
+    bottom_vertices = ng.nodes.new("FunctionNodeCompare")
+    bottom_vertices.label = "Generated Bottom Vertices"
+    bottom_vertices.data_type = "FLOAT"
+    bottom_vertices.operation = "LESS_THAN"
+    ng.links.new(position_xyz.outputs["Z"], bottom_vertices.inputs[0])
+    ng.links.new(minimum.outputs["Z"], bottom_vertices.inputs[1])
+    bottom_z = ng.nodes.new("ShaderNodeMath")
+    bottom_z.label = "Terrain Bottom Z"
+    bottom_z.operation = "SUBTRACT"
+    bottom_z.inputs[1].default_value = depth
+    ng.links.new(minimum.outputs["Z"], bottom_z.inputs[0])
+    bottom_position = ng.nodes.new("ShaderNodeCombineXYZ")
+    bottom_position.label = "Flat Terrain Bottom"
+    ng.links.new(position_xyz.outputs["X"], bottom_position.inputs["X"])
+    ng.links.new(position_xyz.outputs["Y"], bottom_position.inputs["Y"])
+    ng.links.new(bottom_z.outputs["Value"], bottom_position.inputs["Z"])
+    flatten_bottom = ng.nodes.new("GeometryNodeSetPosition")
+    flatten_bottom.label = "Flatten Generated Bottom"
+    ng.links.new(extrude.outputs["Mesh"], flatten_bottom.inputs["Geometry"])
+    ng.links.new(bottom_vertices.outputs["Result"], flatten_bottom.inputs["Selection"])
+    ng.links.new(bottom_position.outputs["Vector"], flatten_bottom.inputs["Position"])
+
+    # The downward extrusion retains the source face winding, so its bottom
+    # initially points up. Flip only horizontal, upward-facing faces: the
+    # bottom points down afterwards while the perimeter normals stay outward.
+    normal = ng.nodes.new("GeometryNodeInputNormal")
+    normal_xyz = ng.nodes.new("ShaderNodeSeparateXYZ")
+    ng.links.new(normal.outputs["Normal"], normal_xyz.inputs["Vector"])
+    upward_faces = ng.nodes.new("FunctionNodeCompare")
+    upward_faces.label = "Generated Bottom Faces"
+    upward_faces.data_type = "FLOAT"
+    upward_faces.operation = "GREATER_THAN"
+    upward_faces.inputs[1].default_value = 0.5
+    ng.links.new(normal_xyz.outputs["Z"], upward_faces.inputs[0])
+    flip_bottom = ng.nodes.new("GeometryNodeFlipFaces")
+    flip_bottom.label = "Orient Terrain Bottom Outward"
+    ng.links.new(flatten_bottom.outputs["Geometry"], flip_bottom.inputs["Mesh"])
+    ng.links.new(upward_faces.outputs["Result"], flip_bottom.inputs["Selection"])
+
+    mark_temporary = ng.nodes.new("GeometryNodeSetMaterial")
+    mark_temporary.label = "Mark Temporary Solidify"
+    mark_temporary.inputs["Material"].default_value = temporary_material
+    ng.links.new(flip_bottom.outputs["Mesh"], mark_temporary.inputs["Geometry"])
+
+    join = ng.nodes.new("GeometryNodeJoinGeometry")
+    join.label = "Join Terrain and Temporary Solidify"
+    ng.links.new(geometry, join.inputs["Geometry"])
+    ng.links.new(mark_temporary.outputs["Geometry"], join.inputs["Geometry"])
+    merge = ng.nodes.new("GeometryNodeMergeByDistance")
+    merge.label = "Weld Terrain Solidify"
+    merge.inputs["Distance"].default_value = 0.0001
+    ng.links.new(join.outputs["Geometry"], merge.inputs["Geometry"])
+    return merge.outputs["Geometry"], [
+        bounds,
+        minimum,
+        maximum,
+        height,
+        extrusion_depth,
+        downward_depth,
+        extrusion_offset,
+        extrude,
+        position,
+        position_xyz,
+        bottom_vertices,
+        bottom_z,
+        bottom_position,
+        flatten_bottom,
+        normal,
+        normal_xyz,
+        upward_faces,
+        flip_bottom,
+        mark_temporary,
+        join,
+        merge,
+    ]
+
+
+def _remove_temporary_solidify_geometry(
+    ng: bpy.types.GeometryNodeTree,
+    geometry: bpy.types.NodeSocket,
+    temporary_material: bpy.types.Material,
+) -> tuple[bpy.types.NodeSocket, list[bpy.types.Node]]:
+    """Remove only faces still carrying the temporary shell material."""
+    selection = ng.nodes.new("GeometryNodeMaterialSelection")
+    selection.label = "Temporary Solidify Faces"
+    selection.inputs["Material"].default_value = temporary_material
+    delete = ng.nodes.new("GeometryNodeDeleteGeometry")
+    delete.label = "Remove Temporary Terrain Bottom and Sides"
+    delete.domain = "FACE"
+    ng.links.new(geometry, delete.inputs["Geometry"])
+    ng.links.new(selection.outputs["Selection"], delete.inputs["Selection"])
+    return delete.outputs["Geometry"], [selection, delete]
+
+
 def _path_batches(paths: list[_ResolvedPath]) -> list[list[_ResolvedPath]]:
     batches: list[list[_ResolvedPath]] = []
     for path in paths:
@@ -642,7 +806,17 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
         return material_cache[key]
 
     child_frames: list[bpy.types.Node] = []
-    cut_geometry = gin.outputs["Geometry"]
+    temporary_solidify_material = _get_temporary_solidify_material()
+    cut_geometry, solidify_nodes = _solidify_terrain(
+        ng,
+        gin.outputs["Geometry"],
+        config.tunnel_system.solidify_depth,
+        temporary_solidify_material,
+    )
+    solidify_frame = frame_nodes(ng, "Solidify Terrain", solidify_nodes)
+    if solidify_frame:
+        child_frames.append(solidify_frame)
+    cutters: list[bpy.types.NodeSocket] = []
     for batch in _path_batches(paths):
         first = batch[0]
         path_geometry, source_nodes = add_object_info_nodes(
@@ -672,14 +846,9 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
         smooth = nodes.new("GeometryNodeSetShadeSmooth")
         smooth.label, smooth.inputs["Shade Smooth"].default_value = "Smooth Tunnel Cut", True
         links.new(material_cutter.outputs["Geometry"], smooth.inputs["Mesh"])
-        boolean = nodes.new("GeometryNodeMeshBoolean")
-        boolean.label = "Cut Tunnel"
-        _configure_exact_boolean(boolean, "DIFFERENCE")
-        links.new(cut_geometry, boolean.inputs["Mesh 1"])
-        links.new(smooth.outputs["Mesh"], boolean.inputs["Mesh 2"])
-        cut_geometry = boolean.outputs["Mesh"]
+        cutters.append(smooth.outputs["Mesh"])
         names = " + ".join(path.object.name for path in batch)
-        frame = frame_nodes(ng, ("Path: " if len(batch) == 1 else "Paths: ") + names, [*batch_nodes, portal_cutter, material_cutter, smooth, boolean])
+        frame = frame_nodes(ng, ("Path: " if len(batch) == 1 else "Paths: ") + names, [*batch_nodes, portal_cutter, material_cutter, smooth])
         if frame:
             child_frames.append(frame)
 
@@ -702,7 +871,7 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
         if group_name is not None and len(unit) > 1:
             union = nodes.new("GeometryNodeMeshBoolean")
             union.label = "Fuse Overlapping Caves"
-            _configure_exact_boolean(union, "UNION", self_intersection=False)
+            _configure_boolean(union, "UNION", self_intersection=False)
             for source in source_nodes:
                 if source.bl_idname == "GeometryNodeObjectInfo":
                     links.new(source.outputs["Geometry"], union.inputs[1])
@@ -715,22 +884,43 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
         flat = nodes.new("GeometryNodeSetShadeSmooth")
         flat.label, flat.inputs["Shade Smooth"].default_value = "Keep Cave Faces Flat", False
         links.new(material.outputs["Geometry"], flat.inputs["Mesh"])
-        boolean = nodes.new("GeometryNodeMeshBoolean")
-        boolean.label = "Cut Caves"
-        _configure_exact_boolean(boolean, "DIFFERENCE")
-        links.new(cut_geometry, boolean.inputs["Mesh 1"])
-        links.new(flat.outputs["Mesh"], boolean.inputs["Mesh 2"])
-        cut_geometry = boolean.outputs["Mesh"]
+        cutters.append(flat.outputs["Mesh"])
         label = f"Caves: {group_name}" if group_name is not None else f"Cave: {unit[0].object.name}"
-        frame = frame_nodes(ng, label, [*unit_nodes, material, flat, boolean])
+        frame = frame_nodes(ng, label, [*unit_nodes, material, flat])
         if frame:
             child_frames.append(frame)
+
+    # Keep Mesh 1 closed until every cutter is applied. A tunnel that exits
+    # the terrain otherwise makes every later boolean much more expensive.
+    final_boolean = nodes.new("GeometryNodeMeshBoolean")
+    final_boolean.label = "Cut Tunnel System"
+    _configure_boolean(
+        final_boolean,
+        "DIFFERENCE",
+        self_intersection=False,
+        solver="FLOAT",
+    )
+    links.new(cut_geometry, final_boolean.inputs["Mesh 1"])
+    for cutter in cutters:
+        links.new(cutter, final_boolean.inputs["Mesh 2"])
+    cut_geometry = final_boolean.outputs["Mesh"]
+    final_frame = frame_nodes(ng, "Cut Tunnel System", [final_boolean])
+    if final_frame:
+        child_frames.append(final_frame)
 
     if any(isinstance(path.entry_decoration, MineShaftEntry) for path in paths):
         entry_collection = _clear_mineshaft_entries()
         for path in paths:
             if isinstance(path.entry_decoration, MineShaftEntry):
                 _create_mineshaft_entry_objects(obj, path.object, path.width, path.height, path.entry_decoration, entry_collection)
+    cut_geometry, cleanup_nodes = _remove_temporary_solidify_geometry(
+        ng,
+        cut_geometry,
+        temporary_solidify_material,
+    )
+    cleanup_frame = frame_nodes(ng, "Remove Temporary Solidify", cleanup_nodes)
+    if cleanup_frame:
+        child_frames.append(cleanup_frame)
     links.new(cut_geometry, gout.inputs["Geometry"])
     frame_nodes(ng, "Tunnel System", child_frames)
 

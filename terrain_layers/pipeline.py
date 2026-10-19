@@ -217,6 +217,7 @@ def run():
                 TunnelCave(cave_object_name="Cave", fuse_group="Main Cave"),
                 TunnelCave(cave_object_name="Cave_2", fuse_group="Main Cave"),
                 TunnelCave(cave_object_name="Cave_3"),
+                TunnelCave(cave_object_name="Cave_4"),
             ),
             texture_scale=0.05,
             shape=TunnelShape.RECTANGLE,

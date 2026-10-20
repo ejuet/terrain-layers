@@ -26,6 +26,13 @@ def purge_package_modules(package_name: str) -> None:
             del sys.modules[module_name]
 
 
+def unregister_previous_ui(package_name: str) -> None:
+    """Remove Blender UI classes before their Python module is discarded."""
+    ui_module = sys.modules.get(f"{package_name}.ui")
+    if ui_module is not None:
+        ui_module.unregister()
+
+
 def import_package_tree(package_name: str):
     package = importlib.import_module(package_name)
     module_names = sorted(
@@ -44,6 +51,11 @@ def import_package_tree(package_name: str):
 
 
 ensure_repo_on_path()
+unregister_previous_ui(PACKAGE_NAME)
 purge_package_modules(PACKAGE_NAME)
 modules = import_package_tree(PACKAGE_NAME)
-modules[f"{PACKAGE_NAME}.pipeline"].run()
+
+# `terrain_layers.ui` is a regular package submodule. Import it explicitly here
+# instead of registering it as an incidental side effect of importing the tree.
+ui = importlib.import_module(f"{PACKAGE_NAME}.ui")
+ui.register()

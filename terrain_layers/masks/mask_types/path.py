@@ -24,7 +24,7 @@ from terrain_layers.utility.geo_nodes import (
 class RoadPathSettings:
     width: float = 2.5
     falloff: float = 1.0
-    sample_count: int = 256
+    sample_count: int = 32
     ray_length: float = 10000.0
     ramp_low: float = 0.0
     ramp_high: float = 1.0
@@ -95,7 +95,9 @@ def _path_source_label(path_def: RoadNetworkPath) -> str:
 
 def _safe_key(value: str | None) -> str:
     value = (value or "").strip()
-    return "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in value) or "Path"
+    return (
+        "".join(ch if (ch.isalnum() or ch in "_-") else "_" for ch in value) or "Path"
+    )
 
 
 def _add_path_source_nodes(
@@ -359,7 +361,10 @@ def create_path_mask_group(group_name: str = "TerrainPathMask"):
     links.new(gin.outputs["Position"], inactive_offset_add.inputs[0])
     links.new(inactive_offset.outputs["Vector"], inactive_offset_add.inputs[1])
     links.new(gin.outputs["Inactive Areas"], inactive_raycast.inputs["Target Geometry"])
-    links.new(inactive_offset_add.outputs["Vector"], inactive_raycast.inputs["Source Position"])
+    links.new(
+        inactive_offset_add.outputs["Vector"],
+        inactive_raycast.inputs["Source Position"],
+    )
     if "Ray Length" in inactive_raycast.inputs:
         links.new(gin.outputs["Ray Length"], inactive_raycast.inputs["Ray Length"])
 

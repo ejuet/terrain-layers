@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
+from pydantic import Field
 from terrain_layers.masks.mask_types import Mask
 from terrain_layers.masks.noise_types import MaskNoiseConfig
 from terrain_layers.shader.material_types import PBRMaterialSource
@@ -26,35 +27,35 @@ class PreviewLayerColor(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class ScatterBiome:
-    id: str
-    eligibility_layer_name: str
-    collection_name: str
-    density: float = 0.03
-    seed: int = 0
-    scale_min: float = 0.9
-    scale_max: float = 1.3
-    keep_upright: bool = False
+    id: str = Field(description="Unique identifier used to associate this biome with footprint masks.")
+    eligibility_layer_name: str = Field(description="Name of the terrain layer whose mask determines where instances may appear.")
+    collection_name: str = Field(description="Name of the Blender collection containing objects to scatter.")
+    density: float = Field(default=0.03, description="Average number of scatter instances per square Blender unit in eligible areas.")
+    seed: int = Field(default=0, description="Random seed used to place and choose scatter instances reproducibly.")
+    scale_min: float = Field(default=0.9, description="Smallest random uniform scale applied to an instance.")
+    scale_max: float = Field(default=1.3, description="Largest random uniform scale applied to an instance.")
+    keep_upright: bool = Field(default=False, description="Keep instances aligned with world up instead of tilting them to the terrain surface.")
 
 
 @dataclass(frozen=True, slots=True)
 class Layer:
-    name: str
-    priority: int = 0
-    strength: float = 1.0
-    mask: Mask | None = None
-    mask_noise: Optional[MaskNoiseConfig] = None
-    pbr_source: Optional[PBRMaterialSource] = None
-    preview_color: Optional[PreviewLayerColor] = None
+    name: str = Field(description="Unique name for this terrain layer.")
+    priority: int = Field(default=0, description="Order used when layers overlap; higher-priority layers take precedence.")
+    strength: float = Field(default=1.0, description="Multiplier applied to the layer mask before terrain blending.")
+    mask: Mask | None = Field(default=None, description="Rule used to generate this layer's terrain mask.")
+    mask_noise: Optional[MaskNoiseConfig] = Field(default=None, description="Optional procedural noise used to vary the generated mask.")
+    pbr_source: Optional[PBRMaterialSource] = Field(default=None, description="Material source supplying the layer's PBR texture maps.")
+    preview_color: Optional[PreviewLayerColor] = Field(default=None, description="Color used for this layer in the generated preview shader.")
 
 
 @dataclass(frozen=True, slots=True)
 class TerrainConfig:
-    object_name: Optional[str] = None
-    path_deformation_modifier_name: str = "Terrain_Path_Deformation"
-    tunnel_system_modifier_name: str = "Terrain_Tunnel_System"
-    geometry_modifier_name: str = "Terrain_Layer_Masks"
-    shader_name: str = "Terrain_Layered_Shader"
-    preview_shader_name: str = "Terrain_Layer_Preview_Shader"
-    tunnel_system: Optional[TunnelSystem] = None
-    layers: list[Layer] = field(default_factory=list)
-    scatter_biomes: list[ScatterBiome] = field(default_factory=list)
+    object_name: Optional[str] = Field(default=None, description="Name of the Blender terrain object; uses the active object when omitted.")
+    path_deformation_modifier_name: str = Field(default="Terrain_Path_Deformation", description="Name used for the road-terrain deformation setup.")
+    tunnel_system_modifier_name: str = Field(default="Terrain_Tunnel_System", description="Name used for the tunnel and cave setup.")
+    geometry_modifier_name: str = Field(default="Terrain_Layer_Masks", description="Name used for the terrain-layer mask setup.")
+    shader_name: str = Field(default="Terrain_Layered_Shader", description="Name assigned to the generated layered terrain material.")
+    preview_shader_name: str = Field(default="Terrain_Layer_Preview_Shader", description="Name assigned to the generated color-coded layer preview material.")
+    tunnel_system: Optional[TunnelSystem] = Field(default=None, description="Optional tunnel and cave excavation configuration.")
+    layers: list[Layer] = Field(default_factory=list, description="Terrain layers to mask and blend.")
+    scatter_biomes: list[ScatterBiome] = Field(default_factory=list, description="Object-scattering biomes placed according to terrain-layer masks.")

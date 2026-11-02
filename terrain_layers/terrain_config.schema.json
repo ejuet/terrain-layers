@@ -4,6 +4,7 @@
       "properties": {
         "enabled": {
           "default": false,
+          "description": "Whether terrain geometry is deformed beneath this path.",
           "title": "Enabled",
           "type": "boolean"
         },
@@ -17,6 +18,7 @@
             }
           ],
           "default": null,
+          "description": "Width of the deformed path area; inherits the path-mask width when omitted.",
           "title": "Width"
         },
         "falloff": {
@@ -29,6 +31,7 @@
             }
           ],
           "default": null,
+          "description": "Distance beyond the path width over which deformation fades out; inherits the path-mask falloff when omitted.",
           "title": "Falloff"
         },
         "sample_count": {
@@ -41,6 +44,7 @@
             }
           ],
           "default": null,
+          "description": "Number of points used along each path segment; inherits the path-mask value when omitted.",
           "title": "Sample Count"
         },
         "ray_length": {
@@ -53,15 +57,18 @@
             }
           ],
           "default": null,
+          "description": "Maximum distance used to find the terrain surface below each path point; inherits the path-mask value when omitted.",
           "title": "Ray Length"
         },
         "strength": {
           "default": 1.0,
+          "description": "Multiplier for the calculated vertical terrain displacement.",
           "title": "Strength",
           "type": "number"
         },
         "vertical_offset": {
           "default": 0.0,
+          "description": "Vertical offset added to the road's terrain deformation.",
           "title": "Vertical Offset",
           "type": "number"
         }
@@ -74,21 +81,25 @@
       "properties": {
         "scale": {
           "default": 6.0,
+          "description": "Scale of the primary noise pattern.",
           "title": "Scale",
           "type": "number"
         },
         "large_scale": {
           "default": 1.5,
+          "description": "Scale of the secondary, broader noise pattern.",
           "title": "Large Scale",
           "type": "number"
         },
         "large_mix": {
           "default": 0.35,
+          "description": "Blend weight of the broader noise pattern.",
           "title": "Large Mix",
           "type": "number"
         },
         "detail": {
           "default": 1.0,
+          "description": "Detail level of both noise patterns.",
           "title": "Detail",
           "type": "number"
         }
@@ -101,26 +112,31 @@
         "type": {
           "const": "height",
           "default": "height",
+          "description": "Mask variant identifier.",
           "title": "Type",
           "type": "string"
         },
         "min_height": {
           "default": 0.0,
+          "description": "World-space height where the mask starts to become active.",
           "title": "Min Height",
           "type": "number"
         },
         "max_height": {
           "default": 10.0,
+          "description": "World-space height where the mask becomes fully active.",
           "title": "Max Height",
           "type": "number"
         },
         "ramp_low": {
           "default": 0.4,
+          "description": "Normalized position of the lower smoothing ramp between the height limits.",
           "title": "Ramp Low",
           "type": "number"
         },
         "ramp_high": {
           "default": 0.6,
+          "description": "Normalized position of the upper smoothing ramp between the height limits.",
           "title": "Ramp High",
           "type": "number"
         }
@@ -131,16 +147,19 @@
     "Layer": {
       "properties": {
         "name": {
+          "description": "Unique name for this terrain layer.",
           "title": "Name",
           "type": "string"
         },
         "priority": {
           "default": 0,
+          "description": "Order used when layers overlap; higher-priority layers take precedence.",
           "title": "Priority",
           "type": "integer"
         },
         "strength": {
           "default": 1.0,
+          "description": "Multiplier applied to the layer mask before terrain blending.",
           "title": "Strength",
           "type": "number"
         },
@@ -180,6 +199,7 @@
             }
           ],
           "default": null,
+          "description": "Rule used to generate this layer's terrain mask.",
           "title": "Mask"
         },
         "mask_noise": {
@@ -191,7 +211,8 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Optional procedural noise used to vary the generated mask."
         },
         "pbr_source": {
           "anyOf": [
@@ -217,6 +238,7 @@
             }
           ],
           "default": null,
+          "description": "Material source supplying the layer's PBR texture maps.",
           "title": "Pbr Source"
         },
         "preview_color": {
@@ -228,7 +250,8 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Color used for this layer in the generated preview shader."
         }
       },
       "required": [
@@ -242,35 +265,35 @@
       "properties": {
         "dual": {
           "$ref": "#/$defs/DualNoiseConfig",
-          "default": {
-            "scale": 6.0,
-            "large_scale": 1.5,
-            "large_mix": 0.35,
-            "detail": 1.0
-          }
+          "description": "Dual-noise sampler used to perturb the mask."
         },
         "amount": {
           "default": 2.8,
+          "description": "Strength of the noise perturbation applied to the mask.",
           "title": "Amount",
           "type": "number"
         },
         "sharpness": {
           "default": 1.8,
+          "description": "Contrast applied to the noise before it affects the mask.",
           "title": "Sharpness",
           "type": "number"
         },
         "bias": {
           "default": 0.0,
+          "description": "Offset applied to the noise contribution.",
           "title": "Bias",
           "type": "number"
         },
         "zone_width": {
           "default": 0.5,
+          "description": "Width of the mask-value band centered at 0.5 that receives noise.",
           "title": "Zone Width",
           "type": "number"
         },
         "zone_softness": {
           "default": 1.0,
+          "description": "Softness of the transition at the edges of the noise-affected band.",
           "title": "Zone Softness",
           "type": "number"
         }
@@ -283,6 +306,7 @@
       "properties": {
         "log_thickness": {
           "default": 0.3,
+          "description": "Thickness of the timber logs used to build each mine-shaft frame.",
           "title": "Log Thickness",
           "type": "number"
         },
@@ -310,11 +334,13 @@
             }
           ],
           "default": null,
+          "description": "Optional PBR material used for the timber; uses the built-in brown material when omitted.",
           "title": "Pbr Source"
         },
         "type": {
           "const": "mine_shaft",
           "default": "mine_shaft",
+          "description": "Tunnel-entry decoration variant identifier.",
           "title": "Type",
           "type": "string"
         }
@@ -326,11 +352,13 @@
       "description": "Read PBR maps from a named Blender material's node tree.",
       "properties": {
         "material_name": {
+          "description": "Name of the Blender material used to provide the PBR maps.",
           "title": "Material Name",
           "type": "string"
         },
         "uv_scale": {
           "default": 1.0,
+          "description": "Multiplier for the material's texture coordinates.",
           "title": "Uv Scale",
           "type": "number"
         },
@@ -343,7 +371,8 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Optional noise-based UV distortion used before sampling textures."
         },
         "uv_anti_tiling": {
           "anyOf": [
@@ -354,11 +383,13 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Optional stochastic UV treatment that reduces visible texture repetition."
         },
         "type": {
           "const": "source_material",
           "default": "source_material",
+          "description": "PBR material-source variant identifier.",
           "title": "Type",
           "type": "string"
         }
@@ -382,6 +413,7 @@
             }
           ],
           "default": null,
+          "description": "Path to the base-color image map.",
           "title": "Base Color"
         },
         "roughness": {
@@ -394,6 +426,7 @@
             }
           ],
           "default": null,
+          "description": "Path to the roughness image map.",
           "title": "Roughness"
         },
         "normal": {
@@ -406,6 +439,7 @@
             }
           ],
           "default": null,
+          "description": "Path to the tangent-space normal image map.",
           "title": "Normal"
         },
         "displacement": {
@@ -418,10 +452,12 @@
             }
           ],
           "default": null,
+          "description": "Path to the displacement or height image map.",
           "title": "Displacement"
         },
         "uv_scale": {
           "default": 1.0,
+          "description": "Multiplier for the texture coordinates used to sample all maps.",
           "title": "Uv Scale",
           "type": "number"
         },
@@ -434,7 +470,8 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Optional noise-based UV distortion used before sampling textures."
         },
         "uv_anti_tiling": {
           "anyOf": [
@@ -445,16 +482,19 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Optional stochastic UV treatment that reduces visible texture repetition."
         },
         "name": {
           "default": "PBR Texture Set",
+          "description": "Human-readable name shown for this texture set.",
           "title": "Name",
           "type": "string"
         },
         "type": {
           "const": "texture_set",
           "default": "texture_set",
+          "description": "PBR material-source variant identifier.",
           "title": "Type",
           "type": "string"
         }
@@ -467,46 +507,55 @@
         "type": {
           "const": "paint",
           "default": "paint",
+          "description": "Mask variant identifier.",
           "title": "Type",
           "type": "string"
         },
         "image_name": {
           "default": "IMG_TerrainPaintMask",
+          "description": "Name of the Blender image that stores the painted mask.",
           "title": "Image Name",
           "type": "string"
         },
         "uv_map_name": {
           "default": "UV_TerrainPaintMask",
+          "description": "Name of the UV map used to read and paint the mask image.",
           "title": "Uv Map Name",
           "type": "string"
         },
         "width": {
           "default": 1024,
+          "description": "Width, in pixels, of a newly created paint-mask image.",
           "title": "Width",
           "type": "integer"
         },
         "height": {
           "default": 1024,
+          "description": "Height, in pixels, of a newly created paint-mask image.",
           "title": "Height",
           "type": "integer"
         },
         "alpha": {
           "default": true,
+          "description": "Create the paint-mask image with an alpha channel.",
           "title": "Alpha",
           "type": "boolean"
         },
         "ramp_low": {
           "default": 0.0,
+          "description": "Input mask value at the low end of the paint-mask remapping ramp.",
           "title": "Ramp Low",
           "type": "number"
         },
         "ramp_high": {
           "default": 1.0,
+          "description": "Input mask value at the high end of the paint-mask remapping ramp.",
           "title": "Ramp High",
           "type": "number"
         },
         "interpolation": {
           "default": "Linear",
+          "description": "Interpolation mode used when sampling the paint-mask image.",
           "enum": [
             "Linear",
             "Closest",
@@ -518,6 +567,7 @@
         },
         "extension": {
           "default": "CLIP",
+          "description": "How image coordinates outside the UV range are handled.",
           "enum": [
             "REPEAT",
             "EXTEND",
@@ -557,10 +607,12 @@
         "type": {
           "const": "road_network",
           "default": "road_network",
+          "description": "Mask variant identifier.",
           "title": "Type",
           "type": "string"
         },
         "paths": {
+          "description": "Curve-object and collection sources that form the combined road mask.",
           "items": {
             "$ref": "#/$defs/RoadNetworkPath"
           },
@@ -568,7 +620,8 @@
           "type": "array"
         },
         "path_settings": {
-          "$ref": "#/$defs/RoadPathSettings"
+          "$ref": "#/$defs/RoadPathSettings",
+          "description": "Default settings used by every road path unless it supplies an override."
         },
         "path_inactive_areas_collection": {
           "anyOf": [
@@ -580,6 +633,7 @@
             }
           ],
           "default": null,
+          "description": "Optional collection whose geometry marks areas where roads should have no effect.",
           "title": "Path Inactive Areas Collection"
         }
       },
@@ -599,6 +653,7 @@
             }
           ],
           "default": null,
+          "description": "Name of one Blender curve object to include in the road network.",
           "title": "Path Object Name"
         },
         "path_collection_name": {
@@ -611,6 +666,7 @@
             }
           ],
           "default": null,
+          "description": "Name of a Blender collection whose curve objects are included in the road network.",
           "title": "Path Collection Name"
         },
         "path_settings": {
@@ -622,7 +678,8 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Settings that override the network defaults for this object or collection."
         }
       },
       "title": "RoadNetworkPath",
@@ -632,36 +689,43 @@
       "properties": {
         "width": {
           "default": 2.5,
+          "description": "Full width of the road mask around each projected path.",
           "title": "Width",
           "type": "number"
         },
         "falloff": {
           "default": 1.0,
+          "description": "Distance outside the road width over which the mask fades out.",
           "title": "Falloff",
           "type": "number"
         },
         "sample_count": {
           "default": 32,
+          "description": "Number of samples used to approximate each curve segment.",
           "title": "Sample Count",
           "type": "integer"
         },
         "ray_length": {
           "default": 10000.0,
+          "description": "Maximum distance used to find the terrain surface below each path point.",
           "title": "Ray Length",
           "type": "number"
         },
         "ramp_low": {
           "default": 0.0,
+          "description": "Input mask value at the low end of the road-mask remapping ramp.",
           "title": "Ramp Low",
           "type": "number"
         },
         "ramp_high": {
           "default": 1.0,
+          "description": "Input mask value at the high end of the road-mask remapping ramp.",
           "title": "Ramp High",
           "type": "number"
         },
         "deformation_settings": {
-          "$ref": "#/$defs/DeformationSettings"
+          "$ref": "#/$defs/DeformationSettings",
+          "description": "Optional terrain-deformation settings shared by paths using these defaults."
         }
       },
       "title": "RoadPathSettings",
@@ -679,6 +743,7 @@
             }
           ],
           "default": null,
+          "description": "Per-path replacement for the shared road-mask width.",
           "title": "Width"
         },
         "falloff": {
@@ -691,6 +756,7 @@
             }
           ],
           "default": null,
+          "description": "Per-path replacement for the shared road-mask falloff.",
           "title": "Falloff"
         },
         "sample_count": {
@@ -703,6 +769,7 @@
             }
           ],
           "default": null,
+          "description": "Per-path replacement for the shared curve sampling count.",
           "title": "Sample Count"
         },
         "ray_length": {
@@ -715,6 +782,7 @@
             }
           ],
           "default": null,
+          "description": "Per-path replacement for the distance used to find the terrain surface.",
           "title": "Ray Length"
         },
         "ramp_low": {
@@ -727,6 +795,7 @@
             }
           ],
           "default": null,
+          "description": "Per-path replacement for the shared lower mask-remapping ramp value.",
           "title": "Ramp Low"
         },
         "ramp_high": {
@@ -739,6 +808,7 @@
             }
           ],
           "default": null,
+          "description": "Per-path replacement for the shared upper mask-remapping ramp value.",
           "title": "Ramp High"
         },
         "deformation_settings": {
@@ -750,7 +820,8 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Per-path replacement for the shared terrain-deformation settings."
         }
       },
       "title": "RoadPathSettingsOverride",
@@ -759,39 +830,47 @@
     "ScatterBiome": {
       "properties": {
         "id": {
+          "description": "Unique identifier used to associate this biome with footprint masks.",
           "title": "Id",
           "type": "string"
         },
         "eligibility_layer_name": {
+          "description": "Name of the terrain layer whose mask determines where instances may appear.",
           "title": "Eligibility Layer Name",
           "type": "string"
         },
         "collection_name": {
+          "description": "Name of the Blender collection containing objects to scatter.",
           "title": "Collection Name",
           "type": "string"
         },
         "density": {
           "default": 0.03,
+          "description": "Average number of scatter instances per square Blender unit in eligible areas.",
           "title": "Density",
           "type": "number"
         },
         "seed": {
           "default": 0,
+          "description": "Random seed used to place and choose scatter instances reproducibly.",
           "title": "Seed",
           "type": "integer"
         },
         "scale_min": {
           "default": 0.9,
+          "description": "Smallest random uniform scale applied to an instance.",
           "title": "Scale Min",
           "type": "number"
         },
         "scale_max": {
           "default": 1.3,
+          "description": "Largest random uniform scale applied to an instance.",
           "title": "Scale Max",
           "type": "number"
         },
         "keep_upright": {
           "default": false,
+          "description": "Keep instances aligned with world up instead of tilting them to the terrain surface.",
           "title": "Keep Upright",
           "type": "boolean"
         }
@@ -810,21 +889,25 @@
         "type": {
           "const": "scatter_footprint",
           "default": "scatter_footprint",
+          "description": "Mask variant identifier.",
           "title": "Type",
           "type": "string"
         },
         "scatter_biome_id": {
           "default": "",
+          "description": "Identifier of the scatter biome whose instances create this footprint.",
           "title": "Scatter Biome Id",
           "type": "string"
         },
         "inner_radius": {
           "default": 0.75,
+          "description": "Radius around each instance that is fully masked.",
           "title": "Inner Radius",
           "type": "number"
         },
         "outer_radius": {
           "default": 1.5,
+          "description": "Radius around each instance where the mask fades to zero.",
           "title": "Outer Radius",
           "type": "number"
         }
@@ -837,26 +920,31 @@
         "type": {
           "const": "slope",
           "default": "slope",
+          "description": "Mask variant identifier.",
           "title": "Type",
           "type": "string"
         },
         "min_angle": {
           "default": 25.0,
+          "description": "Surface slope angle in degrees where the mask starts to become active.",
           "title": "Min Angle",
           "type": "number"
         },
         "max_angle": {
           "default": 60.0,
+          "description": "Surface slope angle in degrees where the mask becomes fully active.",
           "title": "Max Angle",
           "type": "number"
         },
         "ramp_low": {
           "default": 0.4,
+          "description": "Normalized position of the lower smoothing ramp between the slope limits.",
           "title": "Ramp Low",
           "type": "number"
         },
         "ramp_high": {
           "default": 0.6,
+          "description": "Normalized position of the upper smoothing ramp between the slope limits.",
           "title": "Ramp High",
           "type": "number"
         }
@@ -865,9 +953,10 @@
       "type": "object"
     },
     "TunnelCave": {
-      "description": "One mesh volume excavated by a :class:`TunnelSystem`.",
+      "description": "A cave whose shape comes from one mesh object in a :class:`TunnelSystem`.",
       "properties": {
         "cave_object_name": {
+          "description": "Name of the mesh object that defines this cave's shape.",
           "title": "Cave Object Name",
           "type": "string"
         },
@@ -895,6 +984,7 @@
             }
           ],
           "default": null,
+          "description": "Cave-wall material; inherits the system material when omitted.",
           "title": "Pbr Source"
         },
         "texture_scale": {
@@ -907,6 +997,7 @@
             }
           ],
           "default": null,
+          "description": "Cave-wall texture repetitions per Blender unit; inherits the system value when omitted.",
           "title": "Texture Scale"
         },
         "fuse_group": {
@@ -919,6 +1010,7 @@
             }
           ],
           "default": null,
+          "description": "Optional group name for treating overlapping caves as one continuous cave.",
           "title": "Fuse Group"
         }
       },
@@ -929,9 +1021,10 @@
       "type": "object"
     },
     "TunnelPath": {
-      "description": "One curve excavated by a :class:`TunnelSystem`.\n\n``None`` means inherit the corresponding system setting.  ``False`` for\n``entry_decoration`` is deliberately distinct from ``None``: it suppresses\na decoration inherited from the system.",
+      "description": "A tunnel whose route follows one curve in a :class:`TunnelSystem`.\n\n``None`` means inherit the corresponding system setting.  ``False`` for\n``entry_decoration`` is deliberately distinct from ``None``: it suppresses\na decoration inherited from the system.",
       "properties": {
         "curve_object_name": {
+          "description": "Name of the Blender curve object that defines where this tunnel runs.",
           "title": "Curve Object Name",
           "type": "string"
         },
@@ -959,6 +1052,7 @@
             }
           ],
           "default": null,
+          "description": "Tunnel-wall material; inherits the system material when omitted.",
           "title": "Pbr Source"
         },
         "texture_scale": {
@@ -971,6 +1065,7 @@
             }
           ],
           "default": null,
+          "description": "Tunnel-wall texture repetitions per Blender unit; inherits the system value when omitted.",
           "title": "Texture Scale"
         },
         "radius": {
@@ -983,6 +1078,7 @@
             }
           ],
           "default": null,
+          "description": "Radius of a circular tunnel; inherits the system value when omitted.",
           "title": "Radius"
         },
         "shape": {
@@ -994,7 +1090,8 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Cross-section shape; inherits the system shape when omitted."
         },
         "width": {
           "anyOf": [
@@ -1006,6 +1103,7 @@
             }
           ],
           "default": null,
+          "description": "Width of a rectangular tunnel; inherits the system value when omitted.",
           "title": "Width"
         },
         "height": {
@@ -1018,6 +1116,7 @@
             }
           ],
           "default": null,
+          "description": "Height of a rectangular tunnel; inherits the system value when omitted.",
           "title": "Height"
         },
         "keep_floor_level": {
@@ -1030,6 +1129,7 @@
             }
           ],
           "default": null,
+          "description": "Keep a rectangular tunnel floor level; inherits the system value when omitted.",
           "title": "Keep Floor Level"
         },
         "entry_decoration": {
@@ -1045,6 +1145,7 @@
             }
           ],
           "default": null,
+          "description": "Endpoint decoration; null inherits the system setting and false explicitly disables it.",
           "title": "Entry Decoration"
         }
       },
@@ -1063,9 +1164,10 @@
       "type": "string"
     },
     "TunnelSystem": {
-      "description": "Tunnel defaults plus independently configurable path and cave cuts.",
+      "description": "Tunnel defaults, routes, and cave shapes.",
       "properties": {
         "paths": {
+          "description": "Curves that define where tunnels run.",
           "items": {
             "$ref": "#/$defs/TunnelPath"
           },
@@ -1073,6 +1175,7 @@
           "type": "array"
         },
         "pbr_source": {
+          "description": "Default PBR material applied to tunnel and cave walls.",
           "discriminator": {
             "mapping": {
               "source_material": "#/$defs/PBRSourceMaterial",
@@ -1092,6 +1195,7 @@
         },
         "caves": {
           "default": [],
+          "description": "Mesh objects that define cave shapes.",
           "items": {
             "$ref": "#/$defs/TunnelCave"
           },
@@ -1100,35 +1204,42 @@
         },
         "texture_scale": {
           "default": 0.05,
+          "description": "Default tunnel-wall texture repetitions per Blender unit.",
           "title": "Texture Scale",
           "type": "number"
         },
         "radius": {
           "default": 1.0,
+          "description": "Default radius of circular tunnels.",
           "title": "Radius",
           "type": "number"
         },
         "shape": {
           "$ref": "#/$defs/TunnelShape",
-          "default": "circle"
+          "default": "circle",
+          "description": "Default cross-section shape for tunnel paths."
         },
         "width": {
           "default": 2.0,
+          "description": "Default width of rectangular tunnels.",
           "title": "Width",
           "type": "number"
         },
         "height": {
           "default": 2.0,
+          "description": "Default height of rectangular tunnels.",
           "title": "Height",
           "type": "number"
         },
         "solidify_depth": {
           "default": 100.0,
+          "description": "How far the terrain extends below its surface around tunnels and caves.",
           "title": "Solidify Depth",
           "type": "number"
         },
         "keep_floor_level": {
           "default": false,
+          "description": "Keep rectangular tunnel floors level by default.",
           "title": "Keep Floor Level",
           "type": "boolean"
         },
@@ -1141,7 +1252,8 @@
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "description": "Default decoration generated at both endpoints of each tunnel path."
         }
       },
       "required": [
@@ -1155,11 +1267,13 @@
       "properties": {
         "blend": {
           "default": 1.0,
+          "description": "Strength of the anti-tiling effect.",
           "title": "Blend",
           "type": "number"
         },
         "angle": {
           "default": 1.0471975511965976,
+          "description": "Rotation angle, in radians, between anti-tiling texture variants.",
           "title": "Angle",
           "type": "number"
         },
@@ -1169,6 +1283,7 @@
             0.11,
             0.0
           ],
+          "description": "XYZ coordinate offset used to decorrelate anti-tiling texture variants.",
           "maxItems": 3,
           "minItems": 3,
           "prefixItems": [
@@ -1187,12 +1302,7 @@
         },
         "dual_noise": {
           "$ref": "#/$defs/DualNoiseConfig",
-          "default": {
-            "scale": 6.0,
-            "large_scale": 1.5,
-            "large_mix": 0.35,
-            "detail": 1.0
-          }
+          "description": "Noise settings that vary the anti-tiling effect."
         }
       },
       "title": "UVAntiTilingConfig",
@@ -1202,17 +1312,13 @@
       "properties": {
         "amount": {
           "default": 0.08,
+          "description": "Strength of the noise-driven UV-coordinate distortion.",
           "title": "Amount",
           "type": "number"
         },
         "dual_noise": {
           "$ref": "#/$defs/DualNoiseConfig",
-          "default": {
-            "scale": 6.0,
-            "large_scale": 1.5,
-            "large_mix": 0.35,
-            "detail": 1.0
-          }
+          "description": "Noise settings that control the UV distortion."
         }
       },
       "title": "UVWarpConfig",
@@ -1230,30 +1336,36 @@
         }
       ],
       "default": null,
+      "description": "Name of the Blender terrain object; uses the active object when omitted.",
       "title": "Object Name"
     },
     "path_deformation_modifier_name": {
       "default": "Terrain_Path_Deformation",
+      "description": "Name used for the road-terrain deformation setup.",
       "title": "Path Deformation Modifier Name",
       "type": "string"
     },
     "tunnel_system_modifier_name": {
       "default": "Terrain_Tunnel_System",
+      "description": "Name used for the tunnel and cave setup.",
       "title": "Tunnel System Modifier Name",
       "type": "string"
     },
     "geometry_modifier_name": {
       "default": "Terrain_Layer_Masks",
+      "description": "Name used for the terrain-layer mask setup.",
       "title": "Geometry Modifier Name",
       "type": "string"
     },
     "shader_name": {
       "default": "Terrain_Layered_Shader",
+      "description": "Name assigned to the generated layered terrain material.",
       "title": "Shader Name",
       "type": "string"
     },
     "preview_shader_name": {
       "default": "Terrain_Layer_Preview_Shader",
+      "description": "Name assigned to the generated color-coded layer preview material.",
       "title": "Preview Shader Name",
       "type": "string"
     },
@@ -1266,9 +1378,11 @@
           "type": "null"
         }
       ],
-      "default": null
+      "default": null,
+      "description": "Optional tunnel and cave excavation configuration."
     },
     "layers": {
+      "description": "Terrain layers to mask and blend.",
       "items": {
         "$ref": "#/$defs/Layer"
       },
@@ -1276,6 +1390,7 @@
       "type": "array"
     },
     "scatter_biomes": {
+      "description": "Object-scattering biomes placed according to terrain-layer masks.",
       "items": {
         "$ref": "#/$defs/ScatterBiome"
       },

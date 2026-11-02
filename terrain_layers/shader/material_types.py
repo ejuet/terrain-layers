@@ -10,27 +10,29 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class UVWarpConfig:
-    amount: float = 0.08
-    dual_noise: DualNoiseConfig = DualNoiseConfig()
+    amount: float = Field(default=0.08, description="Strength of the noise-driven UV-coordinate distortion.")
+    dual_noise: DualNoiseConfig = Field(default_factory=DualNoiseConfig, description="Noise settings that control the UV distortion.")
 
 
 @dataclass(frozen=True, slots=True)
 class UVAntiTilingConfig:
-    blend: float = 1.0
-    angle: float = math.radians(60)
-    offset: tuple[float, float, float] = (0.37, 0.11, 0.0)
-    dual_noise: DualNoiseConfig = DualNoiseConfig()
+    blend: float = Field(default=1.0, description="Strength of the anti-tiling effect.")
+    angle: float = Field(default=math.radians(60), description="Rotation angle, in radians, between anti-tiling texture variants.")
+    offset: tuple[float, float, float] = Field(default=(0.37, 0.11, 0.0), description="XYZ coordinate offset used to decorrelate anti-tiling texture variants.")
+    dual_noise: DualNoiseConfig = Field(default_factory=DualNoiseConfig, description="Noise settings that vary the anti-tiling effect.")
 
 
 @dataclass(frozen=True, slots=True)
 class PBRSourceMaterial:
     """Read PBR maps from a named Blender material's node tree."""
 
-    material_name: str
-    uv_scale: float = 1.0
-    uv_warp: Optional[UVWarpConfig] = None
-    uv_anti_tiling: Optional[UVAntiTilingConfig] = None
-    type: Literal["source_material"] = "source_material"
+    material_name: str = Field(description="Name of the Blender material used to provide the PBR maps.")
+    uv_scale: float = Field(default=1.0, description="Multiplier for the material's texture coordinates.")
+    uv_warp: Optional[UVWarpConfig] = Field(default=None, description="Optional noise-based UV distortion used before sampling textures.")
+    uv_anti_tiling: Optional[UVAntiTilingConfig] = Field(default=None, description="Optional stochastic UV treatment that reduces visible texture repetition.")
+    type: Literal["source_material"] = Field(
+        default="source_material", description="PBR material-source variant identifier."
+    )
 
     @property
     def display_name(self) -> str:
@@ -52,15 +54,17 @@ class PBRTextureSet:
     :func:`bpy.path.abspath`, so they do not depend on Blender's process CWD.
     """
 
-    base_color: str | None = None
-    roughness: str | None = None
-    normal: str | None = None
-    displacement: str | None = None
-    uv_scale: float = 1.0
-    uv_warp: Optional[UVWarpConfig] = None
-    uv_anti_tiling: Optional[UVAntiTilingConfig] = None
-    name: str = "PBR Texture Set"
-    type: Literal["texture_set"] = "texture_set"
+    base_color: str | None = Field(default=None, description="Path to the base-color image map.")
+    roughness: str | None = Field(default=None, description="Path to the roughness image map.")
+    normal: str | None = Field(default=None, description="Path to the tangent-space normal image map.")
+    displacement: str | None = Field(default=None, description="Path to the displacement or height image map.")
+    uv_scale: float = Field(default=1.0, description="Multiplier for the texture coordinates used to sample all maps.")
+    uv_warp: Optional[UVWarpConfig] = Field(default=None, description="Optional noise-based UV distortion used before sampling textures.")
+    uv_anti_tiling: Optional[UVAntiTilingConfig] = Field(default=None, description="Optional stochastic UV treatment that reduces visible texture repetition.")
+    name: str = Field(default="PBR Texture Set", description="Human-readable name shown for this texture set.")
+    type: Literal["texture_set"] = Field(
+        default="texture_set", description="PBR material-source variant identifier."
+    )
 
     @property
     def display_name(self) -> str:

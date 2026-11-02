@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 
 import bpy
 
+from terrain_layers.shader.create_shader import create_pbr_material_shader
 from terrain_layers.shader.material_types import PBRMaterialSource
 from terrain_layers.tunnels.create_tunnel_path_cutter import (
     create_tunnel_path_cutter_group,
@@ -134,9 +135,6 @@ def create_tunnel_system_modifier(config: "TerrainConfig"):
     nodes, links = ng.nodes, ng.links
     gin = nodes.new("NodeGroupInput")
     gout = nodes.new("NodeGroupOutput")
-
-    # Import lazily to avoid a configuration <-> tunnel module import cycle.
-    from terrain_layers.shader.create_shader import create_pbr_material_shader
 
     material_cache: dict[tuple[PBRMaterialSource, float], bpy.types.Material] = {}
 

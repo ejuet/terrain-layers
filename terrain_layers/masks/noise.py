@@ -1,34 +1,12 @@
 import bpy
 from bpy.types import Node
 from typing import Any
-from dataclasses import dataclass
 from terrain_layers.utility.geo_nodes import remove_node_group, clear_group_interface
 from terrain_layers.masks.mask_types.type_helpers import MaskSocket
 from terrain_layers.utility.frame_nodes import frame_nodes
+from terrain_layers.masks.noise_types import DualNoiseConfig, MaskNoiseConfig
 
 NOISE_ATTR_PREFIX = "__MaskNoiseCentered"
-
-
-@dataclass(frozen=True, slots=True)
-class DualNoiseConfig:
-    # expensive/shared sampler params
-    scale: float = 6.0
-    large_scale: float = 1.5
-    large_mix: float = 0.35
-    detail: float = 1.0
-
-
-@dataclass(frozen=True, slots=True)
-class MaskNoiseConfig:
-    # ties together sampler + application params
-    dual: DualNoiseConfig = DualNoiseConfig()
-
-    # cheap “apply to mask” params
-    amount: float = 2.8
-    sharpness: float = 1.8
-    bias: float = 0.0
-    zone_width: float = 0.5
-    zone_softness: float = 1.0
 
 
 def _dual_noise_attr_name(dual: DualNoiseConfig) -> str:

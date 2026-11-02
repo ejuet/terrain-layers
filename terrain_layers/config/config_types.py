@@ -2,7 +2,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
 from terrain_layers.masks.mask_types import Mask
-from terrain_layers.masks.noise import MaskNoiseConfig
+from terrain_layers.masks.noise_types import MaskNoiseConfig
 from terrain_layers.shader.material_types import PBRMaterialSource
 from terrain_layers.tunnels.tunnel_types import TunnelSystem
 

@@ -1,27 +1,8 @@
-from typing import Literal
 from terrain_layers.utility.geo_nodes import group_has_io, remove_node_group
 import bpy
 from terrain_layers.masks.mask_types.type_helpers import MaskSocket
 from terrain_layers.utility.type_helpers import Node
-from dataclasses import dataclass
-
-
-@dataclass(frozen=True, slots=True)
-class PaintMask:
-    type: Literal["paint"] = "paint"
-
-    image_name: str = "IMG_TerrainPaintMask"
-    uv_map_name: str = "UV_TerrainPaintMask"
-
-    width: int = 1024
-    height: int = 1024
-    alpha: bool = True
-
-    ramp_low: float = 0.0
-    ramp_high: float = 1.0
-
-    interpolation: Literal["Linear", "Closest", "Cubic", "Smart"] = "Linear"
-    extension: Literal["REPEAT", "EXTEND", "CLIP", "MIRROR"] = "CLIP"
+from terrain_layers.masks.mask_types.config_types import PaintMask
 
 
 def _ensure_uv_map(obj: bpy.types.Object, uv_name: str):

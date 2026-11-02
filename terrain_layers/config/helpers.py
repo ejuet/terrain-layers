@@ -1,5 +1,5 @@
 from terrain_layers.config.config_types import Layer, TerrainConfig
-from terrain_layers.masks.mask_types.scatter_footprint import ScatterFootprintMask
+from terrain_layers.masks.mask_types.config_types import ScatterFootprintMask
 
 
 def sort_layers_by_priority(layers: list[Layer]) -> list[Layer]:

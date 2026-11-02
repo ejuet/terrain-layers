@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, fields
-from typing import Literal
+from dataclasses import fields
 
 import bpy
 
@@ -12,63 +11,17 @@ from terrain_layers.paths.path_source import (
     add_path_source_nodes,
     path_source_label,
 )
-from terrain_layers.paths.path_types import DeformationSettings
+from terrain_layers.masks.mask_types.config_types import (
+    RoadNetworkMask,
+    RoadNetworkPath,
+    RoadPathSettings,
+    RoadPathSettingsOverride,
+)
 from terrain_layers.utility.geo_nodes import (
     clear_group_interface,
     group_has_io,
     remove_node_group,
 )
-
-
-@dataclass(frozen=True, slots=True)
-class RoadPathSettings:
-    width: float = 2.5
-    falloff: float = 1.0
-    sample_count: int = 32
-    ray_length: float = 10000.0
-    ramp_low: float = 0.0
-    ramp_high: float = 1.0
-    deformation_settings: DeformationSettings = field(
-        default_factory=DeformationSettings
-    )
-
-
-@dataclass(frozen=True, slots=True)
-class RoadPathSettingsOverride:
-    width: float | None = None
-    falloff: float | None = None
-    sample_count: int | None = None
-    ray_length: float | None = None
-    ramp_low: float | None = None
-    ramp_high: float | None = None
-    deformation_settings: DeformationSettings | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class RoadNetworkPath:
-    """
-    One road source inside a road network.
-    Exactly one of path_object_name or path_collection_name must be set.
-    path_settings overrides the network-level defaults for this source only.
-    """
-
-    path_object_name: str | None = None
-    path_collection_name: str | None = None
-    path_settings: RoadPathSettingsOverride | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class RoadNetworkMask:
-    """
-    Mask that creates a road network from multiple curve objects and/or
-    collections of curve objects. Shared defaults live in path_settings and can
-    be overridden per source.
-    """
-
-    type: Literal["road_network"] = "road_network"
-    paths: list[RoadNetworkPath] = field(default_factory=list)
-    path_settings: RoadPathSettings = field(default_factory=RoadPathSettings)
-    path_inactive_areas_collection: str | None = None
 
 
 def _merge_path_settings(

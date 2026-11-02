@@ -27,11 +27,10 @@ from terrain_layers.masks.mask_types.scatter_footprint import (
     add_scatter_footprint_mask_node,
 )
 from terrain_layers.masks.noise import (
-    DualNoiseConfig,
-    MaskNoiseConfig,
     create_dual_noise_cache,
     add_apply_mask_noise_from_attribute,
 )
+from terrain_layers.masks.noise_types import DualNoiseConfig, MaskNoiseConfig
 from terrain_layers.masks.priority_resolving import add_priority_resolve_node
 
 from terrain_layers.config.config_types import Layer, TerrainConfig

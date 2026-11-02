@@ -1,12 +1,23 @@
-from typing import Annotated, Union
-from pydantic import Field
-from .height import HeightMask
-from .slope import SlopeMask
-from .paint import PaintMask
-from .path import RoadNetworkMask
-from .scatter_footprint import ScatterFootprintMask
+from .config_types import (
+    HeightMask,
+    Mask,
+    PaintMask,
+    RoadNetworkMask,
+    RoadNetworkPath,
+    RoadPathSettings,
+    RoadPathSettingsOverride,
+    ScatterFootprintMask,
+    SlopeMask,
+)
 
-Mask = Annotated[
-    Union[HeightMask, SlopeMask, PaintMask, RoadNetworkMask, ScatterFootprintMask],
-    Field(discriminator="type"),
+__all__ = [
+    "HeightMask",
+    "Mask",
+    "PaintMask",
+    "RoadNetworkMask",
+    "RoadNetworkPath",
+    "RoadPathSettings",
+    "RoadPathSettingsOverride",
+    "ScatterFootprintMask",
+    "SlopeMask",
 ]

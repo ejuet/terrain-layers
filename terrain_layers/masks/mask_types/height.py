@@ -1,18 +1,8 @@
-from dataclasses import dataclass
-from typing import Literal
 from terrain_layers.utility.geo_nodes import remove_node_group
 import bpy
 from terrain_layers.masks.mask_types.type_helpers import MaskSocket
 from terrain_layers.utility.type_helpers import Node
-
-
-@dataclass(frozen=True, slots=True)
-class HeightMask:
-    type: Literal["height"] = "height"
-    min_height: float = 0.0
-    max_height: float = 10.0
-    ramp_low: float = 0.4
-    ramp_high: float = 0.6
+from terrain_layers.masks.mask_types.config_types import HeightMask
 
 
 def create_height_mask_group(group_name: str = "TerrainHeightMask"):

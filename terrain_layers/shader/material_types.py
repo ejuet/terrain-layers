@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Annotated, Literal, Optional, TypeAlias
 import math
 from pydantic import Field
-from terrain_layers.masks.noise import DualNoiseConfig
+from terrain_layers.masks.noise_types import DualNoiseConfig
 
 if TYPE_CHECKING:
     from terrain_layers.shader.get_texture_image import MaterialPBRImages

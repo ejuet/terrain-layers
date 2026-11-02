@@ -4,6 +4,7 @@ import bpy
 from mathutils import Matrix, Vector
 from mathutils.bvhtree import BVHTree
 
+from terrain_layers.shader.create_shader import create_pbr_material_shader
 from terrain_layers.shader.material_types import PBRMaterialSource
 from terrain_layers.tunnels.tunnel_types import MineShaftEntry
 
@@ -18,10 +19,6 @@ def get_mineshaft_log_material(
 ) -> bpy.types.Material:
     """Return the configured log material or the simple brown fallback."""
     if pbr_source is not None:
-        # Imported lazily to keep tunnel configuration independent from the
-        # shader implementation.
-        from terrain_layers.shader.create_shader import create_pbr_material_shader
-
         return create_pbr_material_shader(
             pbr_source,
             MINE_SHAFT_LOG_MATERIAL_NAME,

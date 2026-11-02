@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Literal, TypeAlias
 
 from terrain_layers.shader.material_types import PBRMaterialSource
 
@@ -32,6 +33,10 @@ class MineShaftEntry(TunnelEntryDecoration):
     # When set, the logs use this PBR material instead of the fallback brown
     # material. For example, this can point at a wood texture set.
     pbr_source: PBRMaterialSource | None = None
+    type: Literal["mine_shaft"] = "mine_shaft"
+
+
+TunnelPathEntryDecoration: TypeAlias = MineShaftEntry | None | bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,7 +56,7 @@ class TunnelPath:
     width: float | None = None
     height: float | None = None
     keep_floor_level: bool | None = None
-    entry_decoration: TunnelEntryDecoration | None | bool = None
+    entry_decoration: TunnelPathEntryDecoration = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,4 +88,4 @@ class TunnelSystem:
     # For rectangular tunnels, orient the profile from world Z instead of
     # following the curve's roll, so its floor stays parallel to the XY plane.
     keep_floor_level: bool = False
-    entry_decoration: TunnelEntryDecoration | None = None
+    entry_decoration: MineShaftEntry | None = None

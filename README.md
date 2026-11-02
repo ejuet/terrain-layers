@@ -186,6 +186,8 @@ Note:
 ## Installation
 
 - Clone the repository and install the python module as a Blender addon.
+- Install the runtime dependency into Blender's Python environment:
+  `python -m pip install -r requirements.txt`
 - See the `pipeline.py` file for an example of how to use the addon in the scripting window of Blender.
 
 ## Type Checking Setup

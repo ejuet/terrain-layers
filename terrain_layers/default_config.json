@@ -1,0 +1,98 @@
+{
+  "object_name": "UV_TERRAIN_TILING",
+  "geometry_modifier_name": "Terrain_Layer_Masks",
+  "preview_shader_name": "Terrain_Layer_Preview_Shader",
+  "layers": [
+    {
+      "name": "Underwater",
+      "preview_color": "blue",
+      "pbr_source": {
+        "type": "source_material",
+        "material_name": "Muddy ground with underwater moss",
+        "uv_scale": 2.0,
+        "uv_warp": {},
+        "uv_anti_tiling": {}
+      }
+    },
+    {
+      "name": "Beach",
+      "priority": 10,
+      "mask": {"type": "height", "min_height": 1.0, "max_height": 6.5, "ramp_low": 0.35, "ramp_high": 0.55},
+      "mask_noise": {"dual": {"scale": 6.0, "large_scale": 1.5, "large_mix": 0.35, "detail": 1.0}, "amount": 2.0, "sharpness": 1.6, "bias": 0.0, "zone_width": 0.35, "zone_softness": 1.0},
+      "pbr_source": {"type": "source_material", "material_name": "Sand"}
+    },
+    {
+      "name": "Grass",
+      "priority": 20,
+      "mask": {"type": "height", "min_height": 3.5, "max_height": 8.0, "ramp_low": 0.45, "ramp_high": 0.65},
+      "mask_noise": {"dual": {"scale": 6.0, "large_scale": 1.5, "large_mix": 0.35, "detail": 1.0}, "amount": 1.8, "sharpness": 1.8, "bias": 0.0, "zone_width": 0.5, "zone_softness": 1.0},
+      "pbr_source": {"type": "source_material", "material_name": "Grass"}
+    },
+    {
+      "name": "Tree Soil",
+      "priority": 21,
+      "mask": {"type": "scatter_footprint", "scatter_biome_id": "forest_trees", "inner_radius": 0.8, "outer_radius": 1.8},
+      "pbr_source": {"type": "source_material", "material_name": "Rock"},
+      "preview_color": "pink"
+    },
+    {
+      "name": "Snow",
+      "priority": 25,
+      "mask": {"type": "height", "min_height": 11.0, "max_height": 15.0, "ramp_low": 0.45, "ramp_high": 0.65},
+      "mask_noise": {"dual": {"scale": 6.0, "large_scale": 1.5, "large_mix": 0.35, "detail": 1.0}, "amount": 1.2, "sharpness": 2.2, "bias": 0.0, "zone_width": 0.3, "zone_softness": 1.2},
+      "pbr_source": {"type": "source_material", "material_name": "Snow"}
+    },
+    {
+      "name": "Rock",
+      "priority": 27,
+      "mask": {"type": "slope", "min_angle": 25.0, "max_angle": 60.0, "ramp_low": 0.4, "ramp_high": 0.6},
+      "mask_noise": {"dual": {"scale": 10.0, "large_scale": 2.2, "large_mix": 0.55, "detail": 0.8}, "amount": 2.2, "sharpness": 2.0, "bias": 0.0, "zone_width": 0.4, "zone_softness": 1.0},
+      "pbr_source": {"type": "source_material", "material_name": "Rock"}
+    },
+    {
+      "name": "Volcanos",
+      "priority": 30,
+      "mask": {"type": "paint", "image_name": "IMG_Terrain_VolcanosMask"},
+      "pbr_source": {"type": "source_material", "material_name": "04 Vulcanic Rock Surface D"}
+    },
+    {
+      "name": "Roads",
+      "priority": 40,
+      "mask": {
+        "type": "road_network",
+        "path_settings": {"width": 1.25, "falloff": 0.0, "ramp_low": 0.0, "ramp_high": 0.2, "deformation_settings": {"enabled": true, "width": 2.5, "falloff": 3.0, "strength": 0.85}},
+        "paths": [
+          {"path_collection_name": "Path_Network"},
+          {"path_object_name": "MainRoad", "path_settings": {"width": 2.0}}
+        ],
+        "path_inactive_areas_collection": "Path_Inactive_Areas"
+      },
+      "pbr_source": {"type": "source_material", "material_name": "Sand"}
+    }
+  ],
+  "scatter_biomes": [
+    {"id": "beach_objects", "eligibility_layer_name": "Beach", "collection_name": "Beach_Objects", "density": 0.02, "seed": 15, "scale_min": 0.9, "scale_max": 1.35},
+    {"id": "forest_trees", "eligibility_layer_name": "Grass", "collection_name": "Forest_Trees", "density": 0.02, "seed": 13, "scale_min": 0.9, "scale_max": 1.35, "keep_upright": true}
+  ],
+  "tunnel_system": {
+    "paths": [
+      {"curve_object_name": "Tunnel_Path"},
+      {"curve_object_name": "Tunnel_Path_2"},
+      {"curve_object_name": "Tunnel_Path_3", "shape": "circle", "entry_decoration": false}
+    ],
+    "pbr_source": {"type": "source_material", "material_name": "Rock"},
+    "caves": [
+      {"cave_object_name": "Cave", "fuse_group": "Main Cave"},
+      {"cave_object_name": "Cave_2", "fuse_group": "Main Cave"},
+      {"cave_object_name": "Cave_3"},
+      {"cave_object_name": "Cave_4"}
+    ],
+    "texture_scale": 0.05,
+    "shape": "rectangle",
+    "keep_floor_level": true,
+    "entry_decoration": {
+      "type": "mine_shaft",
+      "pbr_source": {"type": "texture_set", "name": "Bark", "base_color": "//bark_texture/diffuse.jpg", "normal": "//bark_texture/normal.exr", "roughness": "//bark_texture/roughness.exr", "displacement": "//bark_texture/displacement.png", "uv_scale": 8.0}
+    }
+  }
+}

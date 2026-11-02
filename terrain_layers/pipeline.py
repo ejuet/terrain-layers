@@ -1,261 +1,23 @@
-from terrain_layers.config.config_types import (
-    TerrainConfig,
-    Layer,
-    PreviewLayerColor,
-    ScatterBiome,
-)
-from terrain_layers.masks.mask_types.height import HeightMask
-from terrain_layers.masks.mask_types.slope import SlopeMask
-from terrain_layers.masks.mask_types.paint import PaintMask
-from terrain_layers.masks.mask_types.scatter_footprint import ScatterFootprintMask
-from terrain_layers.masks.mask_types.path import (
-    RoadNetworkMask,
-    RoadNetworkPath,
-    RoadPathSettings,
-    RoadPathSettingsOverride,
-)
-from terrain_layers.paths.path_deformation import (
-    DeformationSettings,
-    create_path_deformation,
-)
-from terrain_layers.masks.noise import DualNoiseConfig, MaskNoiseConfig
+from pathlib import Path
 
-from terrain_layers.masks.create_layer_masks import create_terrain_layers
-from terrain_layers.config.helpers import validate_terrain_config
 from terrain_layers.biomes.create_scatter_biomes import validate_scatter_collections
-
-from terrain_layers.shader.create_shader import create_terrain_shader
-from terrain_layers.shader.material_types import (
-    PBRSourceMaterial,
-    PBRTextureSet,
-    UVWarpConfig,
-    UVAntiTilingConfig,
-)
-
+from terrain_layers.config.config_types import TerrainConfig
+from terrain_layers.config.helpers import validate_terrain_config
+from terrain_layers.config.json_io import load_terrain_config
+from terrain_layers.masks.create_layer_masks import create_terrain_layers
+from terrain_layers.paths.path_deformation import create_path_deformation
 from terrain_layers.preview_shader.create_preview_terrain_shader import (
     create_preview_terrain_shader,
 )
-from terrain_layers.tunnels import (
-    MineShaftEntry,
-    TunnelCave,
-    TunnelPath,
-    TunnelShape,
-    TunnelSystem,
-    create_tunnel_system,
-)
+from terrain_layers.shader.create_shader import create_terrain_shader
+from terrain_layers.tunnels import create_tunnel_system
 
 
-def run():
-    # Two dual noise configs: default and an alternate for "Rock"
-    dual_default = DualNoiseConfig(
-        scale=6.0, large_scale=1.5, large_mix=0.35, detail=1.0
-    )
-    dual_alt = DualNoiseConfig(scale=10.0, large_scale=2.2, large_mix=0.55, detail=0.8)
+DEFAULT_CONFIG_PATH = Path(__file__).with_name("default_config.json")
 
-    config = TerrainConfig(
-        object_name="UV_TERRAIN_TILING",
-        geometry_modifier_name="Terrain_Layer_Masks",
-        preview_shader_name="Terrain_Layer_Preview_Shader",
-        layers=[
-            Layer(
-                name="Underwater",
-                priority=0,
-                strength=1.0,
-                preview_color=PreviewLayerColor.BLUE,
-                pbr_source=PBRSourceMaterial(
-                    "Muddy ground with underwater moss",
-                    uv_scale=2.0,
-                    uv_warp=UVWarpConfig(),
-                    uv_anti_tiling=UVAntiTilingConfig(),
-                ),
-            ),
-            Layer(
-                name="Beach",
-                priority=10,
-                strength=1.0,
-                mask=HeightMask(
-                    min_height=1.0,
-                    max_height=6.5,
-                    ramp_low=0.35,
-                    ramp_high=0.55,
-                ),
-                mask_noise=MaskNoiseConfig(
-                    dual=dual_default,
-                    amount=2.0,
-                    sharpness=1.6,
-                    bias=0.0,
-                    zone_width=0.35,
-                    zone_softness=1.0,
-                ),
-                pbr_source=PBRSourceMaterial("Sand"),
-            ),
-            Layer(
-                name="Grass",
-                priority=20,
-                strength=1.0,
-                mask=HeightMask(
-                    min_height=3.5,
-                    max_height=8.0,
-                    ramp_low=0.45,
-                    ramp_high=0.65,
-                ),
-                mask_noise=MaskNoiseConfig(
-                    dual=dual_default,  # reuses the same stored dual noise as Beach
-                    amount=1.8,
-                    sharpness=1.8,
-                    bias=0.0,
-                    zone_width=0.5,
-                    zone_softness=1.0,
-                ),
-                pbr_source=PBRSourceMaterial("Grass"),
-            ),
-            Layer(
-                name="Tree Soil",
-                priority=21,
-                strength=1.0,
-                mask=ScatterFootprintMask(
-                    scatter_biome_id="forest_trees",
-                    inner_radius=0.8,
-                    outer_radius=1.8,
-                ),
-                # Temporary high-contrast material for validating the mask.
-                pbr_source=PBRSourceMaterial("Rock"),
-                preview_color=PreviewLayerColor.PINK,
-            ),
-            Layer(
-                name="Snow",
-                priority=25,
-                strength=1.0,
-                mask=HeightMask(
-                    min_height=11.0,
-                    max_height=15.0,
-                    ramp_low=0.45,
-                    ramp_high=0.65,
-                ),
-                mask_noise=MaskNoiseConfig(
-                    dual=dual_default,  # reuses default dual noise
-                    amount=1.2,
-                    sharpness=2.2,
-                    bias=0.0,
-                    zone_width=0.3,
-                    zone_softness=1.2,
-                ),
-                pbr_source=PBRSourceMaterial("Snow"),
-            ),
-            Layer(
-                name="Rock",
-                priority=27,
-                strength=1.0,
-                mask=SlopeMask(
-                    min_angle=25.0,
-                    max_angle=60.0,
-                    ramp_low=0.4,
-                    ramp_high=0.6,
-                ),
-                mask_noise=MaskNoiseConfig(
-                    dual=dual_alt,  # different dual noise => second stored attribute
-                    amount=2.2,
-                    sharpness=2.0,
-                    bias=0.0,
-                    zone_width=0.4,
-                    zone_softness=1.0,
-                ),
-                pbr_source=PBRSourceMaterial("Rock"),
-            ),
-            Layer(
-                name="Volcanos",
-                priority=30,
-                strength=1.0,
-                mask=PaintMask(
-                    image_name="IMG_Terrain_VolcanosMask",
-                ),
-                pbr_source=PBRSourceMaterial("04 Vulcanic Rock Surface D"),
-            ),
-            Layer(
-                name="Roads",
-                priority=40,
-                strength=1.0,
-                mask=RoadNetworkMask(
-                    path_settings=RoadPathSettings(
-                        width=1.25,
-                        falloff=0.0,
-                        ramp_low=0.0,
-                        ramp_high=0.2,
-                        deformation_settings=DeformationSettings(
-                            enabled=True,
-                            width=2.5,
-                            falloff=3.0,
-                            strength=0.85,
-                        ),
-                    ),
-                    paths=[
-                        RoadNetworkPath(path_collection_name="Path_Network"),
-                        RoadNetworkPath(
-                            path_object_name="MainRoad",
-                            path_settings=RoadPathSettingsOverride(
-                                width=2.0,
-                            ),
-                        ),
-                    ],
-                    path_inactive_areas_collection="Path_Inactive_Areas",
-                ),
-                pbr_source=PBRSourceMaterial("Sand"),
-            ),
-        ],
-        scatter_biomes=[
-            ScatterBiome(
-                id="beach_objects",
-                eligibility_layer_name="Beach",
-                collection_name="Beach_Objects",
-                density=0.02,
-                seed=15,
-                scale_min=0.9,
-                scale_max=1.35,
-            ),
-            ScatterBiome(
-                id="forest_trees",
-                eligibility_layer_name="Grass",
-                collection_name="Forest_Trees",
-                density=0.02,
-                seed=13,
-                scale_min=0.9,
-                scale_max=1.35,
-                keep_upright=True,
-            ),
-        ],
-        tunnel_system=TunnelSystem(
-            paths=(
-                TunnelPath(curve_object_name="Tunnel_Path"),
-                TunnelPath(curve_object_name="Tunnel_Path_2"),
-                TunnelPath(
-                    curve_object_name="Tunnel_Path_3",
-                    shape=TunnelShape.CIRCLE,
-                    entry_decoration=False,
-                ),
-            ),
-            pbr_source=PBRSourceMaterial("Rock"),
-            caves=(
-                TunnelCave(cave_object_name="Cave", fuse_group="Main Cave"),
-                TunnelCave(cave_object_name="Cave_2", fuse_group="Main Cave"),
-                TunnelCave(cave_object_name="Cave_3"),
-                TunnelCave(cave_object_name="Cave_4"),
-            ),
-            texture_scale=0.05,
-            shape=TunnelShape.RECTANGLE,
-            keep_floor_level=True,
-            entry_decoration=MineShaftEntry(
-                pbr_source=PBRTextureSet(
-                    name="Bark",
-                    base_color="//bark_texture/diffuse.jpg",
-                    normal="//bark_texture/normal.exr",
-                    roughness="//bark_texture/roughness.exr",
-                    displacement="//bark_texture/displacement.png",
-                    uv_scale=8.0,
-                ),
-            ),
-        ),
-    )
 
+def build(config: TerrainConfig) -> None:
+    """Validate and build all terrain-layer data from a typed configuration."""
     validate_terrain_config(config)
     validate_scatter_collections(config.scatter_biomes)
     create_path_deformation(config)
@@ -263,3 +25,8 @@ def run():
     create_terrain_layers(config)
     create_terrain_shader(config)
     create_preview_terrain_shader(config)
+
+
+def run() -> None:
+    """Build the bundled default terrain setup."""
+    build(load_terrain_config(DEFAULT_CONFIG_PATH))

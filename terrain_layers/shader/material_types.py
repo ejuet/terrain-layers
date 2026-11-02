@@ -1,6 +1,7 @@
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional, Protocol
+from typing import TYPE_CHECKING, Annotated, Literal, Optional, TypeAlias
 import math
+from pydantic import Field
 from terrain_layers.masks.noise import DualNoiseConfig
 
 if TYPE_CHECKING:
@@ -21,24 +22,6 @@ class UVAntiTilingConfig:
     dual_noise: DualNoiseConfig = DualNoiseConfig()
 
 
-class PBRMaterialSource(Protocol):
-    """A source that can provide the image maps for one PBR material."""
-
-    @property
-    def uv_scale(self) -> float: ...
-
-    @property
-    def uv_warp(self) -> Optional[UVWarpConfig]: ...
-
-    @property
-    def uv_anti_tiling(self) -> Optional[UVAntiTilingConfig]: ...
-
-    @property
-    def display_name(self) -> str: ...
-
-    def resolve_images(self) -> "MaterialPBRImages": ...
-
-
 @dataclass(frozen=True, slots=True)
 class PBRSourceMaterial:
     """Read PBR maps from a named Blender material's node tree."""
@@ -47,6 +30,7 @@ class PBRSourceMaterial:
     uv_scale: float = 1.0
     uv_warp: Optional[UVWarpConfig] = None
     uv_anti_tiling: Optional[UVAntiTilingConfig] = None
+    type: Literal["source_material"] = "source_material"
 
     @property
     def display_name(self) -> str:
@@ -76,6 +60,7 @@ class PBRTextureSet:
     uv_warp: Optional[UVWarpConfig] = None
     uv_anti_tiling: Optional[UVAntiTilingConfig] = None
     name: str = "PBR Texture Set"
+    type: Literal["texture_set"] = "texture_set"
 
     @property
     def display_name(self) -> str:
@@ -90,3 +75,11 @@ class PBRTextureSet:
             normal=self.normal,
             displacement=self.displacement,
         )
+
+
+# Keep this a concrete union rather than a Protocol: configuration loaders need
+# to know which class to instantiate from JSON.
+PBRMaterialSource: TypeAlias = Annotated[
+    PBRSourceMaterial | PBRTextureSet,
+    Field(discriminator="type"),
+]

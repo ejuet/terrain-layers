@@ -1,6 +1,7 @@
 """Blender class registration for the terrain-layer UI."""
 
 import bpy
+from bpy.props import StringProperty
 
 from .panel import (
     TERRAINLAYERS_OT_rebuild_terrain,
@@ -17,6 +18,13 @@ _CLASSES = (
 
 
 def register() -> None:
+    bpy.types.Scene.terrain_layers_config_path = StringProperty(
+        name="Terrain Config",
+        description="Terrain configuration JSON file to use when rebuilding",
+        subtype="FILE_PATH",
+        default="",
+        options={"TEXTEDIT_UPDATE"},
+    )
     for cls in _CLASSES:
         bpy.utils.register_class(cls)
 
@@ -24,3 +32,4 @@ def register() -> None:
 def unregister() -> None:
     for cls in reversed(_CLASSES):
         bpy.utils.unregister_class(cls)
+    del bpy.types.Scene.terrain_layers_config_path

@@ -27,6 +27,7 @@ def build(config: TerrainConfig) -> None:
     create_preview_terrain_shader(config)
 
 
-def run() -> None:
-    """Build the bundled default terrain setup."""
-    build(load_terrain_config(DEFAULT_CONFIG_PATH))
+def run(config_path: str | Path | None = None) -> None:
+    """Build terrain from ``config_path`` or the bundled default configuration."""
+    path = Path(config_path) if config_path else DEFAULT_CONFIG_PATH
+    build(load_terrain_config(path))

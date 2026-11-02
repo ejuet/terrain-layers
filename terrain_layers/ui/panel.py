@@ -19,11 +19,11 @@ def _reload_addon() -> None:
         traceback.print_exc()
 
 
-def _reload_and_rebuild() -> None:
+def _reload_and_rebuild(config_path: str | None = None) -> None:
     """Reload the package, then run its freshly imported terrain pipeline."""
     _reload_addon()
     try:
-        sys.modules["terrain_layers.pipeline"].run()
+        sys.modules["terrain_layers.pipeline"].run(config_path)
     except Exception:
         traceback.print_exc()
 
@@ -43,8 +43,14 @@ class TERRAINLAYERS_OT_rebuild_terrain(bpy.types.Operator):
     bl_label = "Rebuild Terrain"
     bl_description = "Reload all terrain-layer Python modules and rebuild the terrain"
 
-    def execute(self, _context):
-        bpy.app.timers.register(_reload_and_rebuild, first_interval=0.0)
+    def execute(self, context):
+        config_path = context.scene.terrain_layers_config_path
+        # Resolve Blender-relative paths before the timer runs outside this context.
+        resolved_path = bpy.path.abspath(config_path) if config_path else None
+        bpy.app.timers.register(
+            lambda: _reload_and_rebuild(resolved_path),
+            first_interval=0.0,
+        )
         return {"FINISHED"}
 
 
@@ -55,8 +61,9 @@ class VIEW3D_PT_terrain_layers(bpy.types.Panel):
     bl_region_type = "UI"
     bl_category = "Terrain"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
+        layout.prop(context.scene, "terrain_layers_config_path")
         layout.operator(TERRAINLAYERS_OT_reload_addon.bl_idname, text="Reload Addon")
         layout.operator(
             TERRAINLAYERS_OT_rebuild_terrain.bl_idname,

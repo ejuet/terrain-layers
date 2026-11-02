@@ -28,6 +28,28 @@ def _reload_and_rebuild(config_path: str | None = None) -> None:
         traceback.print_exc()
 
 
+def _draw_multires_viewport_detail(layout: bpy.types.UILayout, context) -> None:
+    """Draw Multires viewport-level controls for the selected terrain mesh."""
+    terrain = context.active_object
+    if terrain is None or terrain.type != "MESH":
+        return
+
+    multires_modifiers = [
+        modifier
+        for modifier in terrain.modifiers
+        if modifier.type == "MULTIRES"
+    ]
+    detail_box = layout.box()
+    detail_box.label(text="Viewport Detail")
+    if not multires_modifiers:
+        detail_box.label(text="Selected mesh has no Multires modifier.")
+        return
+
+    for modifier in multires_modifiers:
+        row = detail_box.row()
+        row.prop(modifier, "levels", text=modifier.name, slider=True)
+
+
 class TERRAINLAYERS_OT_reload_addon(bpy.types.Operator):
     bl_idname = "terrain_layers.reload_addon"
     bl_label = "Reload Addon"
@@ -69,3 +91,4 @@ class VIEW3D_PT_terrain_layers(bpy.types.Panel):
             TERRAINLAYERS_OT_rebuild_terrain.bl_idname,
             text="Rebuild Terrain",
         )
+        _draw_multires_viewport_detail(layout, context)

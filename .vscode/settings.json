@@ -7,5 +7,13 @@
         "reportUnknownParameterType": "none",
         "reportUnknownLambdaType": "none",
         "reportOptionalMemberAccess": "none"
-    }
+    },
+    "json.schemas": [
+        {
+            "fileMatch": [
+                "/terrain_layers/default_config.json"
+            ],
+            "url": "./terrain_layers/terrain_config.schema.json"
+        }
+    ]
 }

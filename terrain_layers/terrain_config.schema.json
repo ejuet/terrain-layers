@@ -1,0 +1,1289 @@
+{
+  "$defs": {
+    "DeformationSettings": {
+      "properties": {
+        "enabled": {
+          "default": false,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        },
+        "falloff": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Falloff"
+        },
+        "sample_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Count"
+        },
+        "ray_length": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ray Length"
+        },
+        "strength": {
+          "default": 1.0,
+          "title": "Strength",
+          "type": "number"
+        },
+        "vertical_offset": {
+          "default": 0.0,
+          "title": "Vertical Offset",
+          "type": "number"
+        }
+      },
+      "title": "DeformationSettings",
+      "type": "object"
+    },
+    "DualNoiseConfig": {
+      "description": "Parameters for one reusable dual-noise sampler.",
+      "properties": {
+        "scale": {
+          "default": 6.0,
+          "title": "Scale",
+          "type": "number"
+        },
+        "large_scale": {
+          "default": 1.5,
+          "title": "Large Scale",
+          "type": "number"
+        },
+        "large_mix": {
+          "default": 0.35,
+          "title": "Large Mix",
+          "type": "number"
+        },
+        "detail": {
+          "default": 1.0,
+          "title": "Detail",
+          "type": "number"
+        }
+      },
+      "title": "DualNoiseConfig",
+      "type": "object"
+    },
+    "HeightMask": {
+      "properties": {
+        "type": {
+          "const": "height",
+          "default": "height",
+          "title": "Type",
+          "type": "string"
+        },
+        "min_height": {
+          "default": 0.0,
+          "title": "Min Height",
+          "type": "number"
+        },
+        "max_height": {
+          "default": 10.0,
+          "title": "Max Height",
+          "type": "number"
+        },
+        "ramp_low": {
+          "default": 0.4,
+          "title": "Ramp Low",
+          "type": "number"
+        },
+        "ramp_high": {
+          "default": 0.6,
+          "title": "Ramp High",
+          "type": "number"
+        }
+      },
+      "title": "HeightMask",
+      "type": "object"
+    },
+    "Layer": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "priority": {
+          "default": 0,
+          "title": "Priority",
+          "type": "integer"
+        },
+        "strength": {
+          "default": 1.0,
+          "title": "Strength",
+          "type": "number"
+        },
+        "mask": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "height": "#/$defs/HeightMask",
+                  "paint": "#/$defs/PaintMask",
+                  "road_network": "#/$defs/RoadNetworkMask",
+                  "scatter_footprint": "#/$defs/ScatterFootprintMask",
+                  "slope": "#/$defs/SlopeMask"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/HeightMask"
+                },
+                {
+                  "$ref": "#/$defs/SlopeMask"
+                },
+                {
+                  "$ref": "#/$defs/PaintMask"
+                },
+                {
+                  "$ref": "#/$defs/RoadNetworkMask"
+                },
+                {
+                  "$ref": "#/$defs/ScatterFootprintMask"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mask"
+        },
+        "mask_noise": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MaskNoiseConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "pbr_source": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "source_material": "#/$defs/PBRSourceMaterial",
+                  "texture_set": "#/$defs/PBRTextureSet"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/PBRSourceMaterial"
+                },
+                {
+                  "$ref": "#/$defs/PBRTextureSet"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pbr Source"
+        },
+        "preview_color": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PreviewLayerColor"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "Layer",
+      "type": "object"
+    },
+    "MaskNoiseConfig": {
+      "description": "Parameters for applying a dual-noise sampler to one mask.",
+      "properties": {
+        "dual": {
+          "$ref": "#/$defs/DualNoiseConfig",
+          "default": {
+            "scale": 6.0,
+            "large_scale": 1.5,
+            "large_mix": 0.35,
+            "detail": 1.0
+          }
+        },
+        "amount": {
+          "default": 2.8,
+          "title": "Amount",
+          "type": "number"
+        },
+        "sharpness": {
+          "default": 1.8,
+          "title": "Sharpness",
+          "type": "number"
+        },
+        "bias": {
+          "default": 0.0,
+          "title": "Bias",
+          "type": "number"
+        },
+        "zone_width": {
+          "default": 0.5,
+          "title": "Zone Width",
+          "type": "number"
+        },
+        "zone_softness": {
+          "default": 1.0,
+          "title": "Zone Softness",
+          "type": "number"
+        }
+      },
+      "title": "MaskNoiseConfig",
+      "type": "object"
+    },
+    "MineShaftEntry": {
+      "description": "A timber frame fitted to each entry of a rectangular tunnel.",
+      "properties": {
+        "log_thickness": {
+          "default": 0.3,
+          "title": "Log Thickness",
+          "type": "number"
+        },
+        "pbr_source": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "source_material": "#/$defs/PBRSourceMaterial",
+                  "texture_set": "#/$defs/PBRTextureSet"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/PBRSourceMaterial"
+                },
+                {
+                  "$ref": "#/$defs/PBRTextureSet"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pbr Source"
+        },
+        "type": {
+          "const": "mine_shaft",
+          "default": "mine_shaft",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "MineShaftEntry",
+      "type": "object"
+    },
+    "PBRSourceMaterial": {
+      "description": "Read PBR maps from a named Blender material's node tree.",
+      "properties": {
+        "material_name": {
+          "title": "Material Name",
+          "type": "string"
+        },
+        "uv_scale": {
+          "default": 1.0,
+          "title": "Uv Scale",
+          "type": "number"
+        },
+        "uv_warp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UVWarpConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "uv_anti_tiling": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UVAntiTilingConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "type": {
+          "const": "source_material",
+          "default": "source_material",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "material_name"
+      ],
+      "title": "PBRSourceMaterial",
+      "type": "object"
+    },
+    "PBRTextureSet": {
+      "description": "Load PBR image maps directly from disk when the shader is built.\n\nPaths may be absolute or Blender-relative (``//``). They are resolved with\n:func:`bpy.path.abspath`, so they do not depend on Blender's process CWD.",
+      "properties": {
+        "base_color": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Base Color"
+        },
+        "roughness": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Roughness"
+        },
+        "normal": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Normal"
+        },
+        "displacement": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Displacement"
+        },
+        "uv_scale": {
+          "default": 1.0,
+          "title": "Uv Scale",
+          "type": "number"
+        },
+        "uv_warp": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UVWarpConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "uv_anti_tiling": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/UVAntiTilingConfig"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "name": {
+          "default": "PBR Texture Set",
+          "title": "Name",
+          "type": "string"
+        },
+        "type": {
+          "const": "texture_set",
+          "default": "texture_set",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "title": "PBRTextureSet",
+      "type": "object"
+    },
+    "PaintMask": {
+      "properties": {
+        "type": {
+          "const": "paint",
+          "default": "paint",
+          "title": "Type",
+          "type": "string"
+        },
+        "image_name": {
+          "default": "IMG_TerrainPaintMask",
+          "title": "Image Name",
+          "type": "string"
+        },
+        "uv_map_name": {
+          "default": "UV_TerrainPaintMask",
+          "title": "Uv Map Name",
+          "type": "string"
+        },
+        "width": {
+          "default": 1024,
+          "title": "Width",
+          "type": "integer"
+        },
+        "height": {
+          "default": 1024,
+          "title": "Height",
+          "type": "integer"
+        },
+        "alpha": {
+          "default": true,
+          "title": "Alpha",
+          "type": "boolean"
+        },
+        "ramp_low": {
+          "default": 0.0,
+          "title": "Ramp Low",
+          "type": "number"
+        },
+        "ramp_high": {
+          "default": 1.0,
+          "title": "Ramp High",
+          "type": "number"
+        },
+        "interpolation": {
+          "default": "Linear",
+          "enum": [
+            "Linear",
+            "Closest",
+            "Cubic",
+            "Smart"
+          ],
+          "title": "Interpolation",
+          "type": "string"
+        },
+        "extension": {
+          "default": "CLIP",
+          "enum": [
+            "REPEAT",
+            "EXTEND",
+            "CLIP",
+            "MIRROR"
+          ],
+          "title": "Extension",
+          "type": "string"
+        }
+      },
+      "title": "PaintMask",
+      "type": "object"
+    },
+    "PreviewLayerColor": {
+      "enum": [
+        "red",
+        "green",
+        "blue",
+        "yellow",
+        "cyan",
+        "magenta",
+        "orange",
+        "lime",
+        "teal",
+        "pink",
+        "violet",
+        "gold",
+        "brown",
+        "white"
+      ],
+      "title": "PreviewLayerColor",
+      "type": "string"
+    },
+    "RoadNetworkMask": {
+      "description": "A combined mask from multiple terrain-projected curve paths.",
+      "properties": {
+        "type": {
+          "const": "road_network",
+          "default": "road_network",
+          "title": "Type",
+          "type": "string"
+        },
+        "paths": {
+          "items": {
+            "$ref": "#/$defs/RoadNetworkPath"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
+        "path_settings": {
+          "$ref": "#/$defs/RoadPathSettings"
+        },
+        "path_inactive_areas_collection": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path Inactive Areas Collection"
+        }
+      },
+      "title": "RoadNetworkMask",
+      "type": "object"
+    },
+    "RoadNetworkPath": {
+      "description": "One object or collection used as a source in a road network.",
+      "properties": {
+        "path_object_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path Object Name"
+        },
+        "path_collection_name": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Path Collection Name"
+        },
+        "path_settings": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RoadPathSettingsOverride"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "RoadNetworkPath",
+      "type": "object"
+    },
+    "RoadPathSettings": {
+      "properties": {
+        "width": {
+          "default": 2.5,
+          "title": "Width",
+          "type": "number"
+        },
+        "falloff": {
+          "default": 1.0,
+          "title": "Falloff",
+          "type": "number"
+        },
+        "sample_count": {
+          "default": 32,
+          "title": "Sample Count",
+          "type": "integer"
+        },
+        "ray_length": {
+          "default": 10000.0,
+          "title": "Ray Length",
+          "type": "number"
+        },
+        "ramp_low": {
+          "default": 0.0,
+          "title": "Ramp Low",
+          "type": "number"
+        },
+        "ramp_high": {
+          "default": 1.0,
+          "title": "Ramp High",
+          "type": "number"
+        },
+        "deformation_settings": {
+          "$ref": "#/$defs/DeformationSettings"
+        }
+      },
+      "title": "RoadPathSettings",
+      "type": "object"
+    },
+    "RoadPathSettingsOverride": {
+      "properties": {
+        "width": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        },
+        "falloff": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Falloff"
+        },
+        "sample_count": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sample Count"
+        },
+        "ray_length": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ray Length"
+        },
+        "ramp_low": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ramp Low"
+        },
+        "ramp_high": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ramp High"
+        },
+        "deformation_settings": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DeformationSettings"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "RoadPathSettingsOverride",
+      "type": "object"
+    },
+    "ScatterBiome": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "eligibility_layer_name": {
+          "title": "Eligibility Layer Name",
+          "type": "string"
+        },
+        "collection_name": {
+          "title": "Collection Name",
+          "type": "string"
+        },
+        "density": {
+          "default": 0.03,
+          "title": "Density",
+          "type": "number"
+        },
+        "seed": {
+          "default": 0,
+          "title": "Seed",
+          "type": "integer"
+        },
+        "scale_min": {
+          "default": 0.9,
+          "title": "Scale Min",
+          "type": "number"
+        },
+        "scale_max": {
+          "default": 1.3,
+          "title": "Scale Max",
+          "type": "number"
+        },
+        "keep_upright": {
+          "default": false,
+          "title": "Keep Upright",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "eligibility_layer_name",
+        "collection_name"
+      ],
+      "title": "ScatterBiome",
+      "type": "object"
+    },
+    "ScatterFootprintMask": {
+      "description": "A soft terrain mask around points generated by a scatter biome.",
+      "properties": {
+        "type": {
+          "const": "scatter_footprint",
+          "default": "scatter_footprint",
+          "title": "Type",
+          "type": "string"
+        },
+        "scatter_biome_id": {
+          "default": "",
+          "title": "Scatter Biome Id",
+          "type": "string"
+        },
+        "inner_radius": {
+          "default": 0.75,
+          "title": "Inner Radius",
+          "type": "number"
+        },
+        "outer_radius": {
+          "default": 1.5,
+          "title": "Outer Radius",
+          "type": "number"
+        }
+      },
+      "title": "ScatterFootprintMask",
+      "type": "object"
+    },
+    "SlopeMask": {
+      "properties": {
+        "type": {
+          "const": "slope",
+          "default": "slope",
+          "title": "Type",
+          "type": "string"
+        },
+        "min_angle": {
+          "default": 25.0,
+          "title": "Min Angle",
+          "type": "number"
+        },
+        "max_angle": {
+          "default": 60.0,
+          "title": "Max Angle",
+          "type": "number"
+        },
+        "ramp_low": {
+          "default": 0.4,
+          "title": "Ramp Low",
+          "type": "number"
+        },
+        "ramp_high": {
+          "default": 0.6,
+          "title": "Ramp High",
+          "type": "number"
+        }
+      },
+      "title": "SlopeMask",
+      "type": "object"
+    },
+    "TunnelCave": {
+      "description": "One mesh volume excavated by a :class:`TunnelSystem`.",
+      "properties": {
+        "cave_object_name": {
+          "title": "Cave Object Name",
+          "type": "string"
+        },
+        "pbr_source": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "source_material": "#/$defs/PBRSourceMaterial",
+                  "texture_set": "#/$defs/PBRTextureSet"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/PBRSourceMaterial"
+                },
+                {
+                  "$ref": "#/$defs/PBRTextureSet"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pbr Source"
+        },
+        "texture_scale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Texture Scale"
+        },
+        "fuse_group": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fuse Group"
+        }
+      },
+      "required": [
+        "cave_object_name"
+      ],
+      "title": "TunnelCave",
+      "type": "object"
+    },
+    "TunnelPath": {
+      "description": "One curve excavated by a :class:`TunnelSystem`.\n\n``None`` means inherit the corresponding system setting.  ``False`` for\n``entry_decoration`` is deliberately distinct from ``None``: it suppresses\na decoration inherited from the system.",
+      "properties": {
+        "curve_object_name": {
+          "title": "Curve Object Name",
+          "type": "string"
+        },
+        "pbr_source": {
+          "anyOf": [
+            {
+              "discriminator": {
+                "mapping": {
+                  "source_material": "#/$defs/PBRSourceMaterial",
+                  "texture_set": "#/$defs/PBRTextureSet"
+                },
+                "propertyName": "type"
+              },
+              "oneOf": [
+                {
+                  "$ref": "#/$defs/PBRSourceMaterial"
+                },
+                {
+                  "$ref": "#/$defs/PBRTextureSet"
+                }
+              ]
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Pbr Source"
+        },
+        "texture_scale": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Texture Scale"
+        },
+        "radius": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Radius"
+        },
+        "shape": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TunnelShape"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "width": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Width"
+        },
+        "height": {
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Height"
+        },
+        "keep_floor_level": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Keep Floor Level"
+        },
+        "entry_decoration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MineShaftEntry"
+            },
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Entry Decoration"
+        }
+      },
+      "required": [
+        "curve_object_name"
+      ],
+      "title": "TunnelPath",
+      "type": "object"
+    },
+    "TunnelShape": {
+      "enum": [
+        "circle",
+        "rectangle"
+      ],
+      "title": "TunnelShape",
+      "type": "string"
+    },
+    "TunnelSystem": {
+      "description": "Tunnel defaults plus independently configurable path and cave cuts.",
+      "properties": {
+        "paths": {
+          "items": {
+            "$ref": "#/$defs/TunnelPath"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
+        "pbr_source": {
+          "discriminator": {
+            "mapping": {
+              "source_material": "#/$defs/PBRSourceMaterial",
+              "texture_set": "#/$defs/PBRTextureSet"
+            },
+            "propertyName": "type"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/PBRSourceMaterial"
+            },
+            {
+              "$ref": "#/$defs/PBRTextureSet"
+            }
+          ],
+          "title": "Pbr Source"
+        },
+        "caves": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/TunnelCave"
+          },
+          "title": "Caves",
+          "type": "array"
+        },
+        "texture_scale": {
+          "default": 0.05,
+          "title": "Texture Scale",
+          "type": "number"
+        },
+        "radius": {
+          "default": 1.0,
+          "title": "Radius",
+          "type": "number"
+        },
+        "shape": {
+          "$ref": "#/$defs/TunnelShape",
+          "default": "circle"
+        },
+        "width": {
+          "default": 2.0,
+          "title": "Width",
+          "type": "number"
+        },
+        "height": {
+          "default": 2.0,
+          "title": "Height",
+          "type": "number"
+        },
+        "solidify_depth": {
+          "default": 100.0,
+          "title": "Solidify Depth",
+          "type": "number"
+        },
+        "keep_floor_level": {
+          "default": false,
+          "title": "Keep Floor Level",
+          "type": "boolean"
+        },
+        "entry_decoration": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MineShaftEntry"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "paths",
+        "pbr_source"
+      ],
+      "title": "TunnelSystem",
+      "type": "object"
+    },
+    "UVAntiTilingConfig": {
+      "properties": {
+        "blend": {
+          "default": 1.0,
+          "title": "Blend",
+          "type": "number"
+        },
+        "angle": {
+          "default": 1.0471975511965976,
+          "title": "Angle",
+          "type": "number"
+        },
+        "offset": {
+          "default": [
+            0.37,
+            0.11,
+            0.0
+          ],
+          "maxItems": 3,
+          "minItems": 3,
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "title": "Offset",
+          "type": "array"
+        },
+        "dual_noise": {
+          "$ref": "#/$defs/DualNoiseConfig",
+          "default": {
+            "scale": 6.0,
+            "large_scale": 1.5,
+            "large_mix": 0.35,
+            "detail": 1.0
+          }
+        }
+      },
+      "title": "UVAntiTilingConfig",
+      "type": "object"
+    },
+    "UVWarpConfig": {
+      "properties": {
+        "amount": {
+          "default": 0.08,
+          "title": "Amount",
+          "type": "number"
+        },
+        "dual_noise": {
+          "$ref": "#/$defs/DualNoiseConfig",
+          "default": {
+            "scale": 6.0,
+            "large_scale": 1.5,
+            "large_mix": 0.35,
+            "detail": 1.0
+          }
+        }
+      },
+      "title": "UVWarpConfig",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "object_name": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Object Name"
+    },
+    "path_deformation_modifier_name": {
+      "default": "Terrain_Path_Deformation",
+      "title": "Path Deformation Modifier Name",
+      "type": "string"
+    },
+    "tunnel_system_modifier_name": {
+      "default": "Terrain_Tunnel_System",
+      "title": "Tunnel System Modifier Name",
+      "type": "string"
+    },
+    "geometry_modifier_name": {
+      "default": "Terrain_Layer_Masks",
+      "title": "Geometry Modifier Name",
+      "type": "string"
+    },
+    "shader_name": {
+      "default": "Terrain_Layered_Shader",
+      "title": "Shader Name",
+      "type": "string"
+    },
+    "preview_shader_name": {
+      "default": "Terrain_Layer_Preview_Shader",
+      "title": "Preview Shader Name",
+      "type": "string"
+    },
+    "tunnel_system": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TunnelSystem"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "layers": {
+      "items": {
+        "$ref": "#/$defs/Layer"
+      },
+      "title": "Layers",
+      "type": "array"
+    },
+    "scatter_biomes": {
+      "items": {
+        "$ref": "#/$defs/ScatterBiome"
+      },
+      "title": "Scatter Biomes",
+      "type": "array"
+    }
+  },
+  "title": "TerrainConfig",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

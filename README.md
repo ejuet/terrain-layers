@@ -190,6 +190,16 @@ Note:
   `python -m pip install -r requirements.txt`
 - See the `pipeline.py` file for an example of how to use the addon in the scripting window of Blender.
 
+## JSON Configuration Schema
+
+VS Code validates and completes `terrain_layers/default_config.json` using the
+generated `terrain_layers/terrain_config.schema.json`. After changing config
+models, regenerate that file with:
+
+```bash
+python generate_config_schema.py
+```
+
 ## Type Checking Setup
 
 - Install Pylance
